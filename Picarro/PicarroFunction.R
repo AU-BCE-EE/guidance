@@ -69,6 +69,39 @@ readCRDS <- function(Folder,From=NULL,To=NULL,tz='ETC/GMT-1',rm=TRUE,ibts=FALSE)
 }
 
 
+##########################################################
+### Function to shift Picarro time to the correct time ###
+##########################################################
+
+
+shift_dt <- function(x,d_t,tz="Etc/GMT-1",cRef='RefTime',cDev='DeviceTime',st='st',tzI='CET'){
+	# browser()
+	x <- as.data.table(x)
+	if(!('RefTime' %in% colnames(x) & 'DeviceTime' %in% colnames(x))){
+		stop('The data table/frame x with the time differences needs to have a column with the name "RefTime" and "DeviceTime".
+			Otherwise you can use also the "cRef" and "cDev" argument to use other column names')
+		}
+	x[,RefTime := convert_date(.SD[[cRef]],tz=tzI)]	 
+	x[,DeviceTime := convert_date(.SD[[cDev]],tz=tzI)] 
+	versatz <- as.numeric(x$RefTime - x$DeviceTime,units="secs")
+	zeiten <- with_tz(x[,RefTime],tz=tz)
+	st_out <- st_in <- d_t[,.SD[[st]]]
+	if(length(versatz) == 1){
+		st_out <- st_in + versatz
+	} else {
+		b <- versatz[-length(versatz)]
+		a <- (versatz[-1] - b)/as.numeric(zeiten[-1] - zeiten[-length(zeiten)],units="secs")
+		ind <- findInterval(st_in,zeiten,all.inside=TRUE)
+			for(i in unique(ind)){
+				st_sub <- st_in[ind == i]
+				st_out[ind == i] <- st_sub + b[i] + a[i]*as.numeric(st_sub - zeiten[i],units="secs")
+			}
+		}
+	d_t[[st]] <- st_out	
+	return(d_t)
+}
+
+
 convert_date <- function(x,tz=NULL) {
   formats <- c("Y", "%d.%m.%Y", "%d.%m.%y", "%d.%m.%Y %H:%M", "%d.%m.%y %H:%M", 
                "%d.%m.%Y %H:%M:%S", "%d.%m.%y %H:%M:%S", "Ymd", "ymd", "YmdHM", 
