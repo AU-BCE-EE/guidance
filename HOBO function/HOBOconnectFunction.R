@@ -89,9 +89,7 @@ readHOBO <- function(Folder, From=NULL, To=NULL, Device = NULL, all = FALSE,cut 
 
 
 convert_date <- function(x) {
-  formats <- c("Y", "%d.%m.%Y", "%d.%m.%y", "%d.%m.%Y %H:%M", "%d.%m.%y %H:%M", 
-               "%d.%m.%Y %H:%M:%S", "%d.%m.%y %H:%M:%S", "Ymd", "ymd", "YmdHM", 
-               "ymdHM", "YmdHMS", "ymdHMS")
+  formats <- c("Y", "%d.%m.%Y", "%d.%m.%Y %H:%M", "%d.%m.%Y %H:%M:%S", "Ymd", "YmdHM", "YmdHMS")
   date_time <- parse_date_time(x, orders = formats, tz = "CET")
   return(date_time)
 }
