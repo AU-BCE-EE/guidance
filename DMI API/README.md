@@ -1,6 +1,6 @@
 # Access DMI via API #
 
-This document provides instructions on how to use API access to DMI (Danish Meteorological Institute) using R. Examples are given for the [meteorological observations *(Observationsdata)*](#meteo) and the [climate data *(Klimadata)*](#climate).
+This document provides instructions on how to use API access to DMI (Danish Meteorological Institute) using R. Examples are given for the meteorological observations *(Observationsdata)* and the [climate data *(Klimadata)*.
 
 ## User Creation ##
 
@@ -28,7 +28,7 @@ The following `R` libraries are required to make the requests:
   library(data.table)
   ```
 
-# Meteorological observational data {#meteo}
+# Meteorological observational data #
 
 The meteorological observation (metObs) API service contains raw weather observation data, e.g. wind, temperature, and precipitation data, from DMI owned stations located in Denmark and Greenland. You can read more about meteorological observations and how they are attained under [data information](https://confluence.govcloud.dk/pages/viewpage.action?pageId=41716269).
 
@@ -59,7 +59,6 @@ parameterId_vec <- c("temp_dry", "temp_dew", "temp_mean_past1h", "temp_max_past1
 ### Some comments to the way I do it ###
 
 For a better overview of your code, I suggest assigning the different queries to variables. Except from the urls, the queries will have the following structure in the request `'query_name=your_input'`. If you narrow down your request with multiple queries, they will be separated by `&`.
-
 ```R
 API <- 'api-key=12345-6789-abcd-efgh-987654321' # this is just a random API key I made up.
 url <- 'https://dmigw.govcloud.dk/v2/metObs/collections/observation/items?' # url for accessing observational data
@@ -149,11 +148,18 @@ WS_data
 10000: 2023-07-08T07:50:30.944206Z 2023-04-26T08:30:00Z             wind_speed     06060     8.8
 ```
 
+### Time stamp of DMI data ###
+
+The time stamp of the DMI data are given in `UTC`.
+The rule of thumb is that the time stamp indicates the end of the interval. Assumed, that you have temperature data for every 10 minutes and that the data point is 25.32 °C at time 16:00. That means that between 15:50 and 16:00 the average temperature was 25.32 °C. It is the same with hourly, daily, montly and yearly data points. Or, assumed that you have daily temperature data and that the data point is -10.00 °C at the date 07-01-2021. That means that between 06-01-2021 00:00 and 07-01-2021 00:00 the average temperature was -10.00 °C. The same is true for wind direction, wind speed, relative humidity, etc.
+However for e.g. precipitation, the 10 minute data points are a sum of the fallen precipitation measured within those last 10 minutes. The rule regarding the time stamp still applies.
+
 ## Multiple data requests ##
 
 It is not possible to make multiple station or parameter etc requests at the same time (error 400), but you can loop the data to solve this. An other option would be using the bulk request on DMI (a guide to that might follow later).
 
 ### Example for multiple parameter IDs ###
+
 Define the queries that have multiple entries:
 ```R
 req_parameter <- c('temp_dry', 'temp_dew', 'wind_dir')
@@ -243,12 +249,11 @@ It would even be faster if instead of `paste0` the parameters are directly used 
 
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-# Climate data {#climate}
+# Climate data #
 
 The climate data (climateData) API service contains quality controlled meteorological observation data from Denmark (DNK) and Greenland (GRL). You can read more about climate data and how they are attained under [data information](https://confluence.govcloud.dk/pages/viewpage.action?pageId=41717434).
 
-If you want to download large quantities of climate data, we recommend that you use DMI’s bulk download service. The service lets you download .zip files, each containing historical data for a month going back to 2011 for Denmark and 1958 for Greenland. You can also download all historical data by selecting the file all.zip.
-In this quide, I do not yet cover bulk requests.
+If you want to download large quantities of climate data, DMI recommends that you use their bulk download service. In this guide, I do not yet cover bulk requests.
 
 With the climate data, you can have interpolated meterological observation data from Denmark in 10 x 10 km resoulution, 20 x 20 km resolution, data for the Danish municipality or the country of Denmark.
 
@@ -273,7 +278,6 @@ The list of all available parameterIds is the same as long as you request statio
 ### Temperature Data from Aarhus ###
 
 We wanna have temperature data (hourly resolution) from the Aarhus municipality for the year 2022.
-
 ```R
 ## Define variables
 API <- 'api-key=9816-54321-hgfe-dcba-123456789' # this is just a random API key I made up.
@@ -413,9 +417,16 @@ plot(Temp_WD_ibts,col='red',col2='blue')
 ```
 
 # Comments #
-At the moment, you cannot use DMI's API service to request data from the Foulum weather station, as the station does not provide data to DMI yet. However, witin this year (2023) this should happen and then probably soon after you can access it via DMI's API service (in 10 min resolution).
-The API service is a great tool for accessing data for free. In this documentation, Bulk requests are not covered.
+
+## Foulum weather station ##
+
+At the moment, you cannot use DMI's API service to request data from the Foulum weather station, as the station does not provide data to DMI yet. However, witin this year (2023) this should happen and then probably soon after you can access it via DMI's API service (in 10 min resolution). 
+Be aware that if you download the Foulum data from the agro website, the time stamps are in `UTC+1` resp. `ETC`. Like the regular DMI data, the time stamps also indicate the averages/sums of the last 10min/hour/day/month/year.
+
+## Bulk request ##
+
+If you want to download large quantities of climate data, DMI recommends that you use DMI’s bulk download service. The service lets you download .zip files, each containing historical data for a month going back to a long time (Observational data: 1953, Climate data: 2011 for Denmark and 1958 for Greenland). You can also download all historical data by selecting the file all.zip. In this documentation, bulk requests are however not covered yet.
 
 
-
-<h6>This guide was written by Marcel</h6>
+<h6>The DMI API service is a great tool for accessing data for free. This guide was written by Marcel and a lot of things were copied from the DMI website.
+  If you encounter any problems, you can write me an <a href='mailto:mb@bce.au.dk'>email</a></h6>
