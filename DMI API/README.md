@@ -1,6 +1,6 @@
 # Access DMI via API #
 
-This document provides instructions on how to use API access to DMI (Danish Meteorological Institute) using R. Examples are given for the [meteorological observations *(Observationsdata)*](#mete) and the [climate data *(Klimadata)*](#climate).
+This document provides instructions on how to use API access to DMI (Danish Meteorological Institute) using R. Examples are given for the [meteorological observations *(Observationsdata)*](#meteo) and the [climate data *(Klimadata)*](#climate).
 
 ## User Creation ##
 
@@ -28,7 +28,7 @@ The following `R` libraries are required to make the requests:
   library(data.table)
   ```
 
-# Meteorological observational data # {#meteo}
+# Meteorological observational data {#meteo}
 
 The meteorological observation (metObs) API service contains raw weather observation data, e.g. wind, temperature, and precipitation data, from DMI owned stations located in Denmark and Greenland. You can read more about meteorological observations and how they are attained under [data information](https://confluence.govcloud.dk/pages/viewpage.action?pageId=41716269).
 
@@ -243,7 +243,7 @@ It would even be faster if instead of `paste0` the parameters are directly used 
 
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-# Climate data # {#climate}
+# Climate data {#climate}
 
 The climate data (climateData) API service contains quality controlled meteorological observation data from Denmark (DNK) and Greenland (GRL). You can read more about climate data and how they are attained under [data information](https://confluence.govcloud.dk/pages/viewpage.action?pageId=41717434).
 
