@@ -148,6 +148,22 @@ WS_data
 10000: 2023-07-08T07:50:30.944206Z 2023-04-26T08:30:00Z             wind_speed     06060     8.8
 ```
 
+Plot some of the data
+```R
+library(ggplot2)
+
+WS_data[parameterId %in% c('humidity','pressure','temp_dry'),{
+  X <- rbind(.SD)
+  X[,et := as.POSIXct(observed, format='%Y-%m-%dT%H:%M:%SZ',tz='UTC')]
+  ggplot(X, aes(x=et,y=value,colour=parameterId)) +
+  geom_point() +
+  xlab(NULL) +
+  facet_grid(parameterId ~ ., scale='free_y') +
+  theme_bw() +
+  theme(strip.background =element_rect(fill="white"),panel.grid = element_blank())
+}]
+```
+
 ### Time stamp of DMI data ###
 
 The time stamp of the DMI data are given in `UTC`.
@@ -349,7 +365,8 @@ We wanna have wind direction and temperature data in daily resolution over the p
 API <- 'api-key=9816-54321-hgfe-dcba-123456789' # this is just a random API key I made up.
 url <- 'https://dmigw.govcloud.dk/v2/climateData/collections/10kmGridValue/items?' # url for accessing municipality data
 cellId <- 'cellId=10km_622_57'
-current_time <- format(now(tz='UTC') - years(2),format = "%Y-%m-%dT%H:%M:%SZ") # for having the last two years of data
+current_time <- format(Sys.time() - 86400*365*2,format = "%Y-%m-%dT%H:%M:%SZ") # for having the last two years of data
+# current_time <- format(now() - years(2),format = "%Y-%m-%dT%H:%M:%SZ") # with the package lubridate
 datetime <- paste0('datetime=',current_time,'/..')
 req_parameter <- c('mean_temp', 'mean_wind_dir')
 timeResolution <- 'timeResolution=day'
@@ -413,6 +430,7 @@ plot(Temp_WD_ibts[,'mean_temp'],col='indianred')
 plot(Temp_WD_ibts[,'mean_wind_dir'],col='blue')
 
 # or in one plot
+dev.off() # to close the two panel plot
 plot(Temp_WD_ibts,col='red',col2='blue')
 ```
 
