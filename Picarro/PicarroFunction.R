@@ -65,7 +65,7 @@ readCRDS <- function(Folder,From=NULL,To=NULL,tz='ETC/GMT-1',rm=TRUE,ibts=FALSE,
 					# if(To < time_files[1]){stop(paste0("Your given 'To' time (",To,") is before the available data (",time_files[1],")"))} # error message
 					if(From > To | To_end < From){stop(paste0("Please change either your 'From' and/or 'To' time. The avilable data spans from (",time_files[1],") to (",To_end,")"))} # error message
 					# if(From > To_end){stop("Error: Your 'From' time is after the 'To' time.")} # error message
-					ls_files <- suppressWarnings(lapply(files[which(time_files >= From & time_files <= To)], fread)) # read in the files
+					ls_files <- suppressWarnings(lapply(files[which(time_files >= floor_date(From, 'day') & time_files <= To)], fread)) # read in the files
 					dt <- rbindlist(ls_files)
 					if(nrow(dt) == 0){stop(paste0("The data.table is empty. A reason might be that the time given in the name strings of the Picarro files e.g. '",sub(".*/","",tail(files[which(time_files >= (From - 86400))],n=1)),"' is not in the same time zone than the time zone you chosed (",tz,"). Easiest way is to extend your 'From' or 'To' in the correct direction"))}
 					dt[, Date := as.POSIXct(EPOCH_TIME, origin='1970-01-01',tz=tz)] # make a time format how I like it
