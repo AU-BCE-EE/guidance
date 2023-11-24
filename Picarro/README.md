@@ -1,4 +1,7 @@
 
+<h2>!!!!!!!! At the moment you can not read in files from the old backpack Picarro as those .dat files do not have a EPOCH_TIME column. I already found a solution and will update it as soon as possible. Afterwards, it should also be possible to read in directly the .h5 files </h2>
+
+
 # readCRDS #
 A function to read in data from different type of PICARROS in R.
 The `readCRDS` function will provide you a nice `data.table` of your Picarro data (of which you can make again a data.fram with `as.data.frame` if necessary). 
