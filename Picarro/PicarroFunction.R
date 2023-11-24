@@ -68,19 +68,19 @@ readCRDS <- function(Folder,From=NULL,To=NULL,tz='ETC/GMT-1',rm=TRUE,ibts=FALSE,
 					ls_files <- suppressWarnings(lapply(files[which(time_files >= floor_date(From, 'day') & time_files <= To)], fread)) # read in the files
 					dt <- rbindlist(ls_files)
 					if(nrow(dt) == 0){stop(paste0("The data.table is empty. A reason might be that the time given in the name strings of the Picarro files e.g. '",sub(".*/","",tail(files[which(time_files >= (From - 86400))],n=1)),"' is not in the same time zone than the time zone you chosed (",tz,"). Easiest way is to extend your 'From' or 'To' in the correct direction"))}
-					dt[, Date := as.POSIXct(EPOCH_TIME, origin='1970-01-01',tz=tz)] # make a time format how I like it
+					dt[, st := as.POSIXct(EPOCH_TIME, origin='1970-01-01',tz=tz)] # make a time format how I like it
 					dt[, PICARRO := c(JF='GHG_Picarro',NO='Backpack_Picarro',AH='Ammonia_Picarro',AE='Ammonia_Picarro',CF='Isotope_Picarro')[toupper(substr(CRDS_name,1,2))]] # name of the Picarro
-					if(rm){suppressWarnings(dt <- dt[,.(Date,.SD[,!c('Date','DATE','TIME','FRAC_DAYS_SINCE_JAN1','FRAC_HRS_SINCE_JAN1','EPOCH_TIME','JULIAN_DAYS')])]) # excluding unnecessary date colums and reordering them
-						} else {dt <- dt[,.(Date,.SD[,!c('Date')])]} # reordering columns
-					dt <- dt[Date >= From & Date <= To] # apply exact time range on the data.table
+					if(rm){suppressWarnings(dt <- dt[,.(st,.SD[,!c('st','DATE','TIME','FRAC_DAYS_SINCE_JAN1','FRAC_HRS_SINCE_JAN1','EPOCH_TIME','JULIAN_DAYS')])]) # excluding unnecessary date colums and reordering them
+						} else {dt <- dt[,.(st,.SD[,!c('st')])]} # reordering columns
+					dt <- dt[st >= From & st <= To] # apply exact time range on the data.table
 					if(ibts){
 					  	library(ibts)
 						  # Create et column using shift and replace last value with NA
-					  	dt[, et := shift(Date, type = 'lead')]
+					  	dt[, et := shift(st, type = 'lead')]
 						  # remove rows that have NA in st or et
-						  dt <- dt[complete.cases(dt[, c("et", "Date")]), ]
+						  dt <- dt[complete.cases(dt[, c("et", "st")]), ]
 						  # Convert the data.table to ibts class
-						  Picarro_ibts <- as.ibts(dt,st='Date')
+						  Picarro_ibts <- as.ibts(dt,st='st')
 						  # Return the ibts object
 						  return(Picarro_ibts)
 						} else {return(dt)}
@@ -95,9 +95,9 @@ readCRDS <- function(Folder,From=NULL,To=NULL,tz='ETC/GMT-1',rm=TRUE,ibts=FALSE,
 	} else {
 			dt_list <- lapply(files_all, function(x) {
 				dt <- fread(x)
-				dt[, Date := as.POSIXct(EPOCH_TIME, origin='1970-01-01',tz=tz)] # make a time format how I like it
-				if(rm){suppressWarnings(dt <- dt[,.(Date,.SD[,!c('Date','DATE','TIME','FRAC_DAYS_SINCE_JAN1','FRAC_HRS_SINCE_JAN1','EPOCH_TIME','JULIAN_DAYS')])]) # excluding unnecessary date colums and reordering them
-					} else {dt <- dt[,.(Date,.SD[,!c('Date')])]} # reordering columns
+				dt[, st := as.POSIXct(EPOCH_TIME, origin='1970-01-01',tz=tz)] # make a time format how I like it
+				if(rm){suppressWarnings(dt <- dt[,.(st,.SD[,!c('st','DATE','TIME','FRAC_DAYS_SINCE_JAN1','FRAC_HRS_SINCE_JAN1','EPOCH_TIME','JULIAN_DAYS')])]) # excluding unnecessary date colums and reordering them
+					} else {dt <- dt[,.(st,.SD[,!c('st')])]} # reordering columns
 					})
 			dt_cols <- unique(lapply(dt_list,colnames))
 			out <- list()
