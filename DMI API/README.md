@@ -7,7 +7,7 @@ This document provides instructions on how to use API access to DMI (Danish Mete
 Before you start downloading data from the API, you need to:
   1. Register as a user in DMI's [Developer Portal](https://dmiapi.govcloud.dk/#!/)
   2. Register an application in the Developer Portal and get your "API Key"
-  3. Save the API key somewhere safe, because you need it every time you make a request for the API. Otherwise, you will not be authorized by the API. For more information, see the [User Creation page](https://confluence.govcloud.dk/display/FDAPI/User+Creation).
+  3. Save the API key somewhere safe, because you need it every time you make a request for the API. Otherwise, you will not be authorized by the API. For more information, see the [User Creation page](https://confluence.govcloud.dk/display/FDAPI/Authentication).
   4. You need to make different API keys for different applications, i.e., You can not use the same API key for observational/station data and climate data (grid data). Just make an additional one and make sure that you remember which is for what. 
 
 To summarize, to consume data from the DMI via API, you need to register as an user, register an application, and save the API key securely.
@@ -30,13 +30,13 @@ The following `R` libraries are required to make the requests:
 
 # Meteorological observational data #
 
-The meteorological observation (metObs) API service contains raw weather observation data, e.g. wind, temperature, and precipitation data, from DMI owned stations located in Denmark and Greenland. You can read more about meteorological observations and how they are attained under [data information](https://confluence.govcloud.dk/pages/viewpage.action?pageId=41716269).
+The meteorological observation (metObs) API service contains raw weather observation data, e.g. wind, temperature, and precipitation data, from DMI owned stations located in Denmark and Greenland. You can read more about meteorological observations and how they are attained under [data information](https://confluence.govcloud.dk/display/FDAPI/Meteorological+Observation+Data).
 
 If you want to download large quantities of historical meteorological observation data, DMI recommends that you use thier bulk download service. In this guide I do not yet cover the bulk request.
 
 ## Input list ##
 
-There are different [queries](https://confluence.govcloud.dk/pages/viewpage.action?pageId=41717088) you can use to make your request. Here are the most important queries:
+There are different [queries](https://confluence.govcloud.dk/display/FDAPI/Meteorological+Observation+API#MeteorologicalObservationAPI-API) you can use to make your request. Here are the most important queries:
  - `API-key` - This is always necessary
  - `url` - This is always necessary. There are different url's for different base requests.
  - `stationId` - This is used if you wanna have data from only a certain station. The station ID can either be found with a basic request with the station url or on the [DMI station list](https://confluence.govcloud.dk/pages/viewpage.action?pageId=41717704)
@@ -163,6 +163,7 @@ WS_data[parameterId %in% c('humidity','pressure','temp_dry'),{
   theme(strip.background =element_rect(fill="white"),panel.grid = element_blank())
 }]
 ```
+![Fig1](images/Fig1.png)
 
 ### Time stamp of DMI data ###
 
@@ -355,6 +356,7 @@ Temp[,{
   theme_bw()
 }]
 ```
+![Fig2](images/Fig2.png)
 
 ### Wind direction and temperature data from a grid cell ##
 
@@ -419,8 +421,11 @@ Temp_WD[,{
   theme_bw() +
   theme(strip.background = element_rect(fill="white"), panel.grid = element_blank(),legend.position='none')
 }]
+```
+![Fig3](images/Fig3.png)
 
-## as it is actually interval based data, one could also use the ibts package
+as the data is actually interval based data, one could also use the ibts package
+```R
 library(ibts)
 
 Temp_WD_ibts <- as.ibts(dcast(Temp_WD, st + et ~ parameterId, value.var = list('value')))
@@ -431,10 +436,17 @@ plot(Temp_WD_ibts[,'mean_wind_dir'],col='blue')
 
 # or in one plot
 dev.off() # to close the two panel plot
-plot(Temp_WD_ibts,col='red',col2='blue')
+plot(Temp_WD_ibts,col='indianred',col2='blue')
 ```
+![Fig4](images/Fig4.png)
+![Fig5](images/Fig5.png)
+
 
 # Comments #
+
+## urgent ##
+
+DMI changed all their urls, so they do not work at the moment. Further, the newly added example scripts like I have in this guide, thus making this guide a bit unnecessary.
 
 ## Foulum weather station ##
 
