@@ -120,7 +120,7 @@ readCRDS <- function(Folder,From=NULL,To=NULL,tz='ETC/GMT-1',rm=TRUE,ibts=FALSE,
 ##########################################################
 
 
-shift_dt <- function(x,d_t,tz="Etc/GMT-1",cRef='RefTime',cDev='DeviceTime',st='st',tzI='CET'){
+shift_dt <- function(x,d_t,tz="Etc/GMT-1",cRef='RefTime',cDev='DeviceTime',ST='st',tzI='CET'){
 	# browser()
 	x <- as.data.table(x)
 	if(!('RefTime' %in% colnames(x) & 'DeviceTime' %in% colnames(x))){
@@ -131,7 +131,7 @@ shift_dt <- function(x,d_t,tz="Etc/GMT-1",cRef='RefTime',cDev='DeviceTime',st='s
 	x[,DeviceTime := convert_date(.SD[[cDev]],tz=tzI)] 
 	versatz <- as.numeric(x$RefTime - x$DeviceTime,units="secs")
 	zeiten <- with_tz(x[,RefTime],tz=tz)
-	st_out <- st_in <- d_t[,.SD[[st]]]
+	st_out <- st_in <- d_t[,.SD[[ST]]]
 	if(length(versatz) == 1){
 		st_out <- st_in + versatz
 	} else {
@@ -143,7 +143,7 @@ shift_dt <- function(x,d_t,tz="Etc/GMT-1",cRef='RefTime',cDev='DeviceTime',st='s
 				st_out[ind == i] <- st_sub + b[i] + a[i]*as.numeric(st_sub - zeiten[i],units="secs")
 			}
 		}
-	d_t[[st]] <- st_out	
+	d_t[[ST]] <- st_out	
 	return(d_t)
 }
 
