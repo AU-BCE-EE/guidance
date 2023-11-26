@@ -27,12 +27,19 @@ if (length(missing_packages) > 0) {
 library(data.table)
 library(lubridate)
 
-readCRDS <- function(Folder,From=NULL,To=NULL,tz='ETC/GMT-1',rm=TRUE,ibts=FALSE,mult=FALSE,Ali=FALSE){
-# browser()	
-	files_all <- list.files(Folder,recursive=TRUE,full.names=TRUE,pattern='\\.dat$') # read in only Picarro files
-	if(!Ali){
+readCRDS <- function(Folder,From=NULL,To=NULL,tz='ETC/GMT-1',rm=TRUE,ibts=FALSE,mult=FALSE,Ali=FALSE,h5=FALSE,subfolders=TRUE,name=TRUE,hfiles=FALSE){
+# browser()
+	if(!hfiles){
+	files_all <- list.files(Folder,recursive=subfolders,full.names=TRUE,pattern='\\.dat$') # read in only Picarro files
+	if(!Ali){ # this is used if the rename argument is true. Could be optimised by detection of a date in the file.
 		if(length(files_all) == 0){stop('There are not Picarro files (.dat) in your chosen directory')}
-		Picarro <- unique(sub('^([[:alnum:]]+)[-].*', '\\1', basename(files_all))) # check if the files are from the same Picarro
+	# the oldest backpack Picarro has the same name as another backpack Picarro but different column names. Try to do that by reading in the entire string
+		Picarro <- unique(sub('^([[:alnum:]]+)[-].*', '\\1', basename(files_all))) # check if the files are from the same Picarro. basename() ignores the Path to the files
+		if('Nomads4066' %in% Picarro){
+			out1 <-	grep('Nomads4066', basename(files_all), value=TRUE)
+			out2 <- paste('Nomads4066',unique(sub(".*[\\._]([^-_]+)[-_.].*", "\\1", out1)),sep='.*')
+			Picarro <- c(Picarro[Picarro!='Nomads4066'],out2)
+		}
 		if(length(Picarro) == 1 | (length(Picarro) > 1 & mult)){
 			run_function <- TRUE
 		} else if (length(Picarro) > 1){
@@ -57,20 +64,25 @@ readCRDS <- function(Folder,From=NULL,To=NULL,tz='ETC/GMT-1',rm=TRUE,ibts=FALSE,
 					time_files <- time_files[order(time_files)] # make the correct time order in case of strange folder structure
 					# read in the last file to specify the end time
 					last_file <- suppressWarnings(fread(tail(files,n=1)))
-					To_end <- last_file[.N,as.POSIXct(EPOCH_TIME, origin='1970-01-01',tz=tz)]
+					if('EPOCH_TIME' %in% colnames(last_file)){ 
+						To_end <- last_file[.N,as.POSIXct(EPOCH_TIME, origin='1970-01-01',tz=tz)]
+						} else {To_end <- last_file[.N,as.POSIXct(timestamp/1E3, origin = '0001-01-01',tz=tz)] }
 					if(is.null(From)){From <- time_files[1]} else {From <- convert_date(From,tz=tz)} # define start time
 					if(is.null(To)){To <- To_end} else {To <- convert_date(To,tz=tz)} # define end time
 					if(is.na(From) | is.na(To)){stop('Please enter a valid start and end time e.g. in the format "13.12.1312 13:12:00"')} # error message
-					# if(From > To_end){stop(paste0("Your given 'From' time (",From,") is after the available data (",To_end,")"))} # error message
-					# if(To < time_files[1]){stop(paste0("Your given 'To' time (",To,") is before the available data (",time_files[1],")"))} # error message
 					if(From > To | To_end < From){stop(paste0("Please change either your 'From' and/or 'To' time. The avilable data spans from (",time_files[1],") to (",To_end,")"))} # error message
 					# if(From > To_end){stop("Error: Your 'From' time is after the 'To' time.")} # error message
 					ls_files <- suppressWarnings(lapply(files[which(time_files >= floor_date(From, 'day') & time_files <= To)], fread)) # read in the files
 					dt <- rbindlist(ls_files)
 					if(nrow(dt) == 0){stop(paste0("The data.table is empty. A reason might be that the time given in the name strings of the Picarro files e.g. '",sub(".*/","",tail(files[which(time_files >= (From - 86400))],n=1)),"' is not in the same time zone than the time zone you chosed (",tz,"). Easiest way is to extend your 'From' or 'To' in the correct direction"))}
-					dt[, st := as.POSIXct(EPOCH_TIME, origin='1970-01-01',tz=tz)] # make a time format how I like it
+					if('EPOCH_TIME' %in% colnames(dt)){ 
+						dt[, st := as.POSIXct(EPOCH_TIME, origin='1970-01-01',tz=tz)] # make a time format how I like it
+						} else {dt[, st := as.POSIXct(timestamp/1E3, origin = '0001-01-01',tz=tz)] }
+# make a column with the Picarro type. Can be switch off by the argument 'name'
+					if(name){					
 					dt[, PICARRO := c(JF='GHG_Picarro',NO='Backpack_Picarro',AH='Ammonia_Picarro',AE='Ammonia_Picarro',CF='Isotope_Picarro')[toupper(substr(CRDS_name,1,2))]] # name of the Picarro
-					if(rm){suppressWarnings(dt <- dt[,.(st,.SD[,!c('st','DATE','TIME','FRAC_DAYS_SINCE_JAN1','FRAC_HRS_SINCE_JAN1','EPOCH_TIME','JULIAN_DAYS')])]) # excluding unnecessary date colums and reordering them
+					}
+					if(rm){suppressWarnings(dt <- dt[,.(st,.SD[,!c('st','DATE','TIME','FRAC_DAYS_SINCE_JAN1','FRAC_HRS_SINCE_JAN1','EPOCH_TIME','JULIAN_DAYS','timestamp')])]) # excluding unnecessary date colums and reordering them
 						} else {dt <- dt[,.(st,.SD[,!c('st')])]} # reordering columns
 					dt <- dt[st >= From & st <= To] # apply exact time range on the data.table
 					if(ibts){
@@ -95,8 +107,10 @@ readCRDS <- function(Folder,From=NULL,To=NULL,tz='ETC/GMT-1',rm=TRUE,ibts=FALSE,
 	} else {
 			dt_list <- lapply(files_all, function(x) {
 				dt <- fread(x)
-				dt[, st := as.POSIXct(EPOCH_TIME, origin='1970-01-01',tz=tz)] # make a time format how I like it
-				if(rm){suppressWarnings(dt <- dt[,.(st,.SD[,!c('st','DATE','TIME','FRAC_DAYS_SINCE_JAN1','FRAC_HRS_SINCE_JAN1','EPOCH_TIME','JULIAN_DAYS')])]) # excluding unnecessary date colums and reordering them
+				if('EPOCH_TIME' %in% colnames(dt)){ 
+					dt[, st := as.POSIXct(EPOCH_TIME, origin='1970-01-01',tz=tz)] # make a time format how I like it
+					} else {dt[, st := as.POSIXct(timestamp/1E3, origin = '0001-01-01',tz=tz)] }
+				if(rm){suppressWarnings(dt <- dt[,.(st,.SD[,!c('st','DATE','TIME','FRAC_DAYS_SINCE_JAN1','FRAC_HRS_SINCE_JAN1','EPOCH_TIME','JULIAN_DAYS','timestamp')])]) # excluding unnecessary date colums and reordering them
 					} else {dt <- dt[,.(st,.SD[,!c('st')])]} # reordering columns
 					})
 			dt_cols <- unique(lapply(dt_list,colnames))
@@ -112,6 +126,55 @@ readCRDS <- function(Folder,From=NULL,To=NULL,tz='ETC/GMT-1',rm=TRUE,ibts=FALSE,
 			if(length(out) == 1){out <- out[[1]]}
 			return(out)
 	}
+} else {
+	# browser()
+	library(rhdf5)
+	files_all <- list.files(Folder,recursive=subfolders,full.names=TRUE,pattern='\\.h5$') # read in only h5 files
+	if(length(files_all) == 0){stop('There are no Picarro files (.h5) in your chosen directory')}
+	Picarro <- unique(sub('^([[:alnum:]]+)[-].*', '\\1', basename(files_all))) # I just read the Picarro name
+	files <- grep(Picarro,files_all,value=TRUE)
+	time_strings <- sub('^[[:alnum:]]+[-](\\d{8})[-](\\d{6}).*', '\\1\\2', basename(files)) # read out timestamp
+	time_files <- strptime(time_strings, '%Y%m%d%H%M%S',tz=tz) # convert times
+	files <- files[order(time_files)] # make the correct time order in case of strange folder structure
+	time_files <- time_files[order(time_files)] # make the correct time order in case of strange folder structure
+	# read in the last file to specify the end time
+	open_h5_last <- H5Fopen(tail(files,n=1))
+	last_file <- data.table(h5read(open_h5_last, h5ls(open_h5_last)$name,bit64conversion='double'))
+	# H5Fclose(open_h5_last)
+	To_end <- last_file[.N,as.POSIXct(time, origin='1970-01-01',tz=tz)]
+	if(is.null(From)){From <- time_files[1]} else {From <- convert_date(From,tz=tz)} # define start time
+	if(is.null(To)){To <- To_end} else {To <- convert_date(To,tz=tz)} # define end time
+	if(is.na(From) | is.na(To)){stop('Please enter a valid start and end time e.g. in the format "13.12.1312 13:12:00"')} # error message
+	if(From > To | To_end < From){stop(paste0("Please change either your 'From' and/or 'To' time. The avilable data spans from (",time_files[1],") to (",To_end,")"))} # error message
+	# if(From > To_end){stop("Error: Your 'From' time is after the 'To' time.")} # error message
+	ls_files <- lapply(files[which(time_files >= floor_date(From, 'day') & time_files <= To)], function(y) {
+		h5open <- H5Fopen(y)
+		h5read <- data.table(h5read(h5open, h5ls(h5open)$name,bit64conversion='double'))
+		# H5Fclose(h5open)
+		return(h5read)
+	})
+	dt <- rbindlist(ls_files)
+	if(nrow(dt) == 0){stop(paste0("The data.table is empty. A reason might be that the time given in the name strings of the Picarro files e.g. '",sub(".*/","",tail(files[which(time_files >= (From - 86400))],n=1)),"' is not in the same time zone than the time zone you chosed (",tz,"). Easiest way is to extend your 'From' or 'To' in the correct direction"))}
+	dt[, st := as.POSIXct(time, origin='1970-01-01',tz=tz)] # make a time format how I like it
+# make a column with the Picarro type. Can be switch off by the argument 'name'
+	if(name){					
+	dt[, PICARRO := c(JF='GHG_Picarro',NO='Backpack_Picarro',AH='Ammonia_Picarro',AE='Ammonia_Picarro',CF='Isotope_Picarro')[toupper(substr(Picarro,1,2))]] # name of the Picarro
+	}
+	if(rm){suppressWarnings(dt <- dt[,.(st,.SD[,!c('st','DATE','TIME','FRAC_DAYS_SINCE_JAN1','FRAC_HRS_SINCE_JAN1','EPOCH_TIME','JULIAN_DAYS','timestamp','time')])]) # excluding unnecessary date colums and reordering them
+		} else {dt <- dt[,.(st,.SD[,!c('st')])]} # reordering columns
+	dt <- dt[st >= From & st <= To] # apply exact time range on the data.table
+	if(ibts){
+	  	library(ibts)
+		  # Create et column using shift and replace last value with NA
+	  	dt[, et := shift(st, type = 'lead')]
+		  # remove rows that have NA in st or et
+		  dt <- dt[complete.cases(dt[, c("et", "st")]), ]
+		  # Convert the data.table to ibts class
+		  Picarro_ibts <- as.ibts(dt,st='st')
+		  # Return the ibts object
+		  return(Picarro_ibts)
+		} else {return(dt)}
+}
 }
 
 
