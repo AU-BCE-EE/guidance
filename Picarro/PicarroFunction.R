@@ -27,9 +27,9 @@ if (length(missing_packages) > 0) {
 library(data.table)
 library(lubridate)
 
-readCRDS <- function(Folder,From=NULL,To=NULL,tz='ETC/GMT-1',rm=TRUE,ibts=FALSE,mult=FALSE,Ali=FALSE,h5=FALSE,subfolders=TRUE,name=TRUE,hfiles=FALSE){
+readCRDS <- function(Folder,From=NULL,To=NULL,tz='ETC/GMT-1',rm=TRUE,ibts=FALSE,mult=FALSE,Ali=FALSE,h5=FALSE,subfolders=TRUE,name=TRUE){
 # browser()
-	if(!hfiles){
+	if(!h5){
 	files_all <- list.files(Folder,recursive=subfolders,full.names=TRUE,pattern='\\.dat$') # read in only Picarro files
 	if(!Ali){ # this is used if the rename argument is true. Could be optimised by detection of a date in the file.
 		if(length(files_all) == 0){stop('There are not Picarro files (.dat) in your chosen directory')}
