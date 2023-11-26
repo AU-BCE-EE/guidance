@@ -1,7 +1,3 @@
-
-<h2>!!!!!!!! At the moment you can not read in files from the old backpack Picarro as those .dat files do not have a EPOCH_TIME column. I already found a solution and will update it as soon as possible. Afterwards, it should also be possible to read in directly the .h5 files </h2>
-
-
 # readCRDS #
 A function to read in data from different type of PICARROS in R.
 The `readCRDS` function will provide you a nice `data.table` of your Picarro data (of which you can make again a data.fram with `as.data.frame` if necessary). 
@@ -26,7 +22,8 @@ The readCRDS function has the following arguments:
 ```R
 > args(readCRDS)
 function (Folder, From = NULL, To = NULL, tz = "ETC/GMT-1", rm = TRUE, 
-    ibts = FALSE, mult = FALSE, Ali = FALSE)
+    ibts = FALSE, mult = FALSE, Ali = FALSE, h5 = FALSE, subfolders = TRUE, 
+    name = TRUE)
 ```
 - Folder: A file.path to your directory with the Picarro data. This can also be a top directory with multiple subdirectories. It also does not matter if there are other files in the directory like `.xlsx`, `.ppt`, `.jpg` or whatever you can imagine. It will only read in files with the file format `.dat`.
 - From: In case you don't wanna read in all data, you can select the start time. The function loads only the file that are witin your defined time period, which is much faster than reading in all data and do the selection afterwards. Different input formats are possible. In general, I recommend you using `'dd.mm.YY HH:MM:SS'` (of course you can also omit the time). In case `From` is not defined, it will just read in the earliest File it finds. The set time is read as the time zone provided in `tz`. More about the conversion can be found in the function `convert_date` (see further below).
@@ -36,7 +33,14 @@ function (Folder, From = NULL, To = NULL, tz = "ETC/GMT-1", rm = TRUE,
 - ibts: In case you wanna have your data in the `ibts` format. More information about this: https://github.com/ChHaeni/ibts
 - mult: The function is able to read in multiple type of Picarro files at the same time e.g., GHG, NH3, CH4, Isotope Picarro. If different Picarros are detected, it will ask you if you really wanna read them in. In such a case, the output will be a list with an entry for each Picarro. If the argument is set to `TRUE`, then there is no prompt.
 - Ali: If you had the glourious idea to change to file names of the Picarro files, my function does not really work. In such a case you have to use the argument `Ali` and set it to `TRUE`. This is just a hot fix. It will still be able to read in multiple file types but the detection happens over the column names and not the name string of the file names. If you use multiple Picarros of the same type e.g., two Backpack Picarro, it will rowbind those files together, which is not the case in the original function. Also, with `Ali` it is not possible to select the time range as it will read in anyway all files and I thought you can do thus the selection on your own.
-
+- name: Set it to FALSE if you don't wanna have a column with the Picarro name
+- subfolders: Set it to FALSE if you don't wanna look for files in subdirectorys
+- h5: If set to TRUE, it is able to read in .h5 (oldest Backpack Picarro). For this to work you need to install some packages: 
+```R
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+BiocManager::install("rhdf5")
+```
 # Other functions #
 In this script there are two other functions of which one is needed for `readCRDS`
 
@@ -55,10 +59,12 @@ dt
 ```
 
 # Feedback #
-### things I wanna include ###
-- That you can select a top folder with data from different Picarros and by argument say what type of Picarro data you would like to have. So far, it will just read in all the Picarro files in the directory. 
+### things I might include ###
+- That you can select a top directory with data from different Picarros and by argument say what type of Picarro data you would like to have. So far, it will just read in all the Picarro files in the directory. 
 - That the function is able to differentiate between different Picarros of the same type, e.g., G2509_#3 and G2509_#5. For that, I need more example files.
 - Improve the function if you had the 'glourious' idea to change your file name.
+- Make it possible to read in .h5 and .dat files at the same time
+- The FROM selection is not perfect yet as the time strings are in different timezones.
 
 ### Bug reporting ###
 If you encounter any bugs, please either open an `issue` here or write me an <a href='mailto:mb@bce.au.dk'>email</a>
