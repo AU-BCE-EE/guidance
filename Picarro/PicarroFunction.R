@@ -27,7 +27,7 @@ if (length(missing_packages) > 0) {
 library(data.table)
 library(lubridate)
 
-readCRDS <- function(Folder,From=NULL,To=NULL,tz='ETC/GMT-1',rm=TRUE,ibts=FALSE,mult=FALSE,Ali=FALSE,h5=FALSE,subfolders=TRUE,name=TRUE){
+readCRDS <- function(Folder,From=NULL,To=NULL,tz='ETC/GMT-1',rm=TRUE,ibts=FALSE,mult=FALSE,Ali=FALSE,h5=FALSE,subfolders=TRUE,name=TRUE,fill=FALSE){
 # browser()
 	if(!h5){
 	files_all <- list.files(Folder,recursive=subfolders,full.names=TRUE,pattern='\\.dat$') # read in only Picarro files
@@ -73,7 +73,7 @@ readCRDS <- function(Folder,From=NULL,To=NULL,tz='ETC/GMT-1',rm=TRUE,ibts=FALSE,
 					if(From > To | To_end < From){stop(paste0("Please change either your 'From' and/or 'To' time. The avilable data spans from (",time_files[1],") to (",To_end,")"))} # error message
 					# if(From > To_end){stop("Error: Your 'From' time is after the 'To' time.")} # error message
 					ls_files <- suppressWarnings(lapply(files[which(time_files >= floor_date(From, 'day') & time_files <= To)], fread)) # read in the files
-					dt <- rbindlist(ls_files)
+					dt <- rbindlist(ls_files,fill=fill)
 					if(nrow(dt) == 0){stop(paste0("The data.table is empty. A reason might be that the time given in the name strings of the Picarro files e.g. '",sub(".*/","",tail(files[which(time_files >= (From - 86400))],n=1)),"' is not in the same time zone than the time zone you chosed (",tz,"). Easiest way is to extend your 'From' or 'To' in the correct direction"))}
 					if('EPOCH_TIME' %in% colnames(dt)){ 
 						dt[, st := as.POSIXct(EPOCH_TIME, origin='1970-01-01',tz=tz)] # make a time format how I like it
@@ -121,7 +121,7 @@ readCRDS <- function(Folder,From=NULL,To=NULL,tz='ETC/GMT-1',rm=TRUE,ibts=FALSE,
 			    return(dt)
 			  }
 			})
-				out[[i]] <- rbindlist(list_sub)
+				out[[i]] <- rbindlist(list_sub,fill=fill)
 			}
 			if(length(out) == 1){out <- out[[1]]}
 			return(out)
@@ -153,7 +153,7 @@ readCRDS <- function(Folder,From=NULL,To=NULL,tz='ETC/GMT-1',rm=TRUE,ibts=FALSE,
 		# H5Fclose(h5open)
 		return(h5read)
 	})
-	dt <- rbindlist(ls_files)
+	dt <- rbindlist(ls_files,fill=fill)
 	if(nrow(dt) == 0){stop(paste0("The data.table is empty. A reason might be that the time given in the name strings of the Picarro files e.g. '",sub(".*/","",tail(files[which(time_files >= (From - 86400))],n=1)),"' is not in the same time zone than the time zone you chosed (",tz,"). Easiest way is to extend your 'From' or 'To' in the correct direction"))}
 	dt[, st := as.POSIXct(time, origin='1970-01-01',tz=tz)] # make a time format how I like it
 # make a column with the Picarro type. Can be switch off by the argument 'name'
@@ -183,31 +183,34 @@ readCRDS <- function(Folder,From=NULL,To=NULL,tz='ETC/GMT-1',rm=TRUE,ibts=FALSE,
 ##########################################################
 
 
-shift_dt <- function(x,d_t,tz="Etc/GMT-1",cRef='RefTime',cDev='DeviceTime',ST='st',tzI='CET'){
+shift_dt <- function(x,d_t,tz="Etc/GMT-1",cRef='RefTime',cDev='DeviceTime',ST='st',tzDev='UTC',tzRef='CET'){
 	# browser()
 	x <- as.data.table(x)
 	if(!('RefTime' %in% colnames(x) & 'DeviceTime' %in% colnames(x))){
 		stop('The data table/frame x with the time differences needs to have a column with the name "RefTime" and "DeviceTime".
 			Otherwise you can use also the "cRef" and "cDev" argument to use other column names')
 		}
-	x[,RefTime := convert_date(.SD[[cRef]],tz=tzI)]	 
-	x[,DeviceTime := convert_date(.SD[[cDev]],tz=tzI)] 
-	versatz <- as.numeric(x$RefTime - x$DeviceTime,units="secs")
-	zeiten <- with_tz(x[,RefTime],tz=tz)
-	st_out <- st_in <- d_t[,.SD[[ST]]]
-	if(length(versatz) == 1){
-		st_out <- st_in + versatz
+	x[,RefTime := convert_date(.SD[[cRef]],tz=as.character(tzRef))]	 
+	x[,DeviceTime := convert_date(.SD[[cDev]],tz=as.character(tzDev))] 
+	offset <- as.numeric(x$RefTime - x$DeviceTime,units="secs")
+	times <- with_tz(x[,RefTime],tz=tz)
+	# st_out <- st_in <- d_t[,.SD[[ST]]]
+	st_out <- st_in <- d_t[[ST]]
+	if(length(offset) == 1){
+		st_out <- st_in + offset
 	} else {
-		b <- versatz[-length(versatz)]
-		a <- (versatz[-1] - b)/as.numeric(zeiten[-1] - zeiten[-length(zeiten)],units="secs")
-		ind <- findInterval(st_in,zeiten,all.inside=TRUE)
+		b <- offset[-length(offset)]
+		a <- (offset[-1] - b)/as.numeric(times[-1] - times[-length(times)],units="secs")
+		ind <- findInterval(st_in,times,all.inside=TRUE)
 			for(i in unique(ind)){
 				st_sub <- st_in[ind == i]
-				st_out[ind == i] <- st_sub + b[i] + a[i]*as.numeric(st_sub - zeiten[i],units="secs")
+				st_out[ind == i] <- st_sub + b[i] + a[i]*as.numeric(st_sub - times[i],units="secs")
 			}
 		}
-	d_t[[ST]] <- st_out	
-	return(d_t)
+	# d_t[[ST]] <- st_out
+	dt_out <- copy(d_t)
+	set(dt_out, j = ST, value = st_out)
+	return(dt_out)
 }
 
 
