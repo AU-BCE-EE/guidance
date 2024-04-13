@@ -39,20 +39,20 @@ readHOBO <- function(Folder, From=NULL, To=NULL, Device = NULL, all = FALSE,cut 
 		# create a data table with the list of files
 		dt_files <- data.table(file_path = files)
 		# extract serial number and date from file names
-		dt_files[, c('serial', 'date','time') := tstrsplit(basename(file_path), " ")[1:3]]
-		# convert date to POSIXct format
-		dt_files[, date_time := as.POSIXct(paste(date,time,sep=' '), format = "%Y-%m-%d %H_%M_%S")]
+		dt_files[, ':=' (serial = gsub('(.*)(\\d{4}-\\d{2}-\\d{2} \\d{2}_\\d{2}_\\d{2}).*', '\\1', basename(file_path)),
+										date_time = as.POSIXct(gsub('.*?(\\d{4}-\\d{2}-\\d{2} \\d{2}_\\d{2}_\\d{2}).*', '\\1', basename(file_path)), format = "%Y-%m-%d %H_%M_%S"))]
 		# select latest file for each serial number
 		files_select <- dt_files[order(-date_time), .SD[1], by = serial]$file_path
 		}
 	# select only the files of the chosen device (or all if empty)
 	if(is.numeric(Device)){stop('Please provide the device name as character')}
 	# select loggers
-	if(is.null(Device)){Device_name <- unique(sub('.*([0-9]{2}) [0-9]{4}-[0-9]{2}-[0-9]{2}.*', '\\1', files_select))} else {Device_name <- Device}
-	selected_files <- files_select[grepl(paste(paste0('217774',Device_name), collapse = "|"), files_select)]
+	if(is.null(Device)){Device_name <- unique(dt_files[,serial])} else {Device_name <- Device}
+	selected_files <- files_select[grepl(paste(Device_name, collapse = "|"), files_select)]
 	# read in the data
 	HOBO_ls <- lapply(files_select, function(x){
-		out <- fread(x)
+		# browser()
+		out <- fread(x,fill=TRUE)
 		setnames(out, old= names(out), new = c('Device','Date','Temp','RH','DewPt','Connected','End'))
 		dev_name <- sub('.*([0-9]{2}) [0-9]{4}-[0-9]{2}-[0-9]{2}.*', '\\1', x)
 		out[,Device := as.character(Device)]
@@ -88,9 +88,9 @@ readHOBO <- function(Folder, From=NULL, To=NULL, Device = NULL, all = FALSE,cut 
 
 
 
-convert_date <- function(x) {
+convert_date <- function(x,tz=NULL) {
   formats <- c("Y", "%d.%m.%Y", "%d.%m.%Y %H:%M", "%d.%m.%Y %H:%M:%S", "Ymd", "YmdHM", "YmdHMS")
-  date_time <- parse_date_time(x, orders = formats, tz = "CET")
+  date_time <- parse_date_time(x, orders = formats, tz = tz)
   return(date_time)
 }
 
