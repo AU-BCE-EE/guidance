@@ -55,13 +55,13 @@ readHOBO <- function(Folder, From=NULL, To=NULL, Device = NULL, latest = FALSE,c
 				setnames(out, new = c('Device','Date','Temp','RH','DewPt', gsub(" ", "_", names(out)[6:length(names(out))])))
 				out[,Device := as.character(Device)]
 				out[,Device := k]
-				out[,Date := as.POSIXct(Date, '%m/%d/%Y %H:%M:%S',tz='CET')] # convert times
-				if(cut){out1 <- out[, .(Device,Date,Temp,RH,DewPt)]} else{out1 <- out}
+				out[,st := as.POSIXct(Date, '%m/%d/%Y %H:%M:%S',tz='CET')] # convert times
+				if(cut){out1 <- out[, .(Device,st,Temp,RH,DewPt)]} else{out1 <- out}
 				return(out1)
 			})
 # browser()
 			device_out <- rbindlist(device_ls,fill=TRUE)
-			device_out2 <- device_out[Date >= FROM & Date <= TO,] # apply exact time range on the data.table
+			device_out2 <- device_out[st >= FROM & st <= TO,] # apply exact time range on the data.table
 			# remove dublicates
 			device_out3 <- unique(device_out2)
 			return(device_out3)
@@ -74,7 +74,7 @@ readHOBO <- function(Folder, From=NULL, To=NULL, Device = NULL, latest = FALSE,c
 	# remove empty list entires form possible errors
 	HOBO_clean <- HOBO_ls[!sapply(HOBO_ls, is.null)]
 	dt <- rbindlist(HOBO_clean,fill=TRUE)
-	dt[order(Device,Date)]
+	dt[order(Device,st)]
 	return(dt)
 }
 
