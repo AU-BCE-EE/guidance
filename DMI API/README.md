@@ -7,7 +7,7 @@ This document provides instructions on how to use API access to DMI (Danish Mete
 Before you start downloading data from the API, you need to:
   1. Register as a user in DMI's [Developer Portal](https://dmiapi.govcloud.dk/#!/)
   2. Register an application in the Developer Portal and get your "API Key"
-  3. Save the API key somewhere safe, because you need it every time you make a request for the API. Otherwise, you will not be authorized by the API. For more information, see the [User Creation page](https://confluence.govcloud.dk/display/FDAPI/Authentication).
+  3. Save the API key somewhere safe, because you need it every time you make a request for the API. Otherwise, you will not be authorised by the API. For more information, see the [User Creation page](https://opendatadocs.dmi.govcloud.dk/en/Authentication).
   4. You need to make different API keys for different applications, i.e., You can not use the same API key for observational/station data and climate data (grid data). Just make an additional one and make sure that you remember which is for what. 
 
 To summarize, to consume data from the DMI via API, you need to register as an user, register an application, and save the API key securely.
@@ -30,16 +30,16 @@ The following `R` libraries are required to make the requests:
 
 # Meteorological observational data #
 
-The meteorological observation (metObs) API service contains raw weather observation data, e.g. wind, temperature, and precipitation data, from DMI owned stations located in Denmark and Greenland. You can read more about meteorological observations and how they are attained under [data information](https://confluence.govcloud.dk/display/FDAPI/Meteorological+Observation+Data).
+The meteorological observation (metObs) API service contains raw weather observation data, e.g. wind, temperature, and precipitation data, from DMI owned stations located in Denmark and Greenland. You can read more about meteorological observations and how they are attained under [data information](https://opendatadocs.dmi.govcloud.dk/en/Data/Meteorological_Observation_Data).
 
-If you want to download large quantities of historical meteorological observation data, DMI recommends that you use thier bulk download service. In this guide I do not yet cover the bulk request.
+If you want to download large quantities of historical meteorological observation data, DMI recommends that you use thier bulk download service. In this guide I do not yet cover the bulk request (I just loop over it).
 
 ## Input list ##
 
-There are different [queries](https://confluence.govcloud.dk/display/FDAPI/Meteorological+Observation+API#MeteorologicalObservationAPI-API) you can use to make your request. Here are the most important queries:
+There are different [queries](https://opendatadocs.dmi.govcloud.dk/en/APIs/Meteorological_Observation_API#collections) you can use to make your request. Here are the most important queries:
  - `API-key` - This is always necessary
  - `url` - This is always necessary. There are different url's for different base requests.
- - `stationId` - This is used if you wanna have data from only a certain station. The station ID can either be found with a basic request with the station url or on the [DMI station list](https://confluence.govcloud.dk/pages/viewpage.action?pageId=41717704)
+ - `stationId` - This is used if you wanna have data from only a certain station. The station ID can either be found with a basic request with the station url or on the [DMI station list](https://opendatadocs.dmi.govcloud.dk/Data/Meteorological_Observation_Data_Stations)
  - `datetime` - With this you can defien the time range of the data. Different formats are possible. More information in the documentation linked above.
  - `parameterId` - Define which parameter you need. Below is a list (actually a vector) of all possible parameters.
  - `limit` - Define how many rows/entries you need. Default is 1,000. Max is 300,000.
@@ -268,7 +268,7 @@ It would even be faster if instead of `paste0` the parameters are directly used 
 
 # Climate data #
 
-The climate data (climateData) API service contains quality controlled meteorological observation data from Denmark (DNK) and Greenland (GRL). You can read more about climate data and how they are attained under [data information](https://confluence.govcloud.dk/pages/viewpage.action?pageId=41717434).
+The climate data (climateData) API service contains quality controlled meteorological observation data from Denmark (DNK) and Greenland (GRL). You can read more about climate data and how they are attained under [data information](https://opendatadocs.dmi.govcloud.dk/Data/Climate_Data).
 
 If you want to download large quantities of climate data, DMI recommends that you use their bulk download service. In this guide, I do not yet cover bulk requests.
 
@@ -276,7 +276,7 @@ With the climate data, you can have interpolated meterological observation data 
 
 ## Input list ##
 
-The [queries](https://confluence.govcloud.dk/pages/viewpage.action?pageId=41718244) are mostly the same as for the meteorological data. Just use a different API key. I thus list here only the ones that are different or important for the climate data:
+The [queries](https://opendatadocs.dmi.govcloud.dk/en/APIs/Climate_Data_API#collections#collections) are mostly the same as for the meteorological data. Just use a different API key. I thus list here only the ones that are different or important for the climate data:
  - `url` - Here are the different `url`s for accessing climate data.
     - Status of stations: `https://dmigw.govcloud.dk/v2/climateData/collections/station/items?`
     - Climate data for stations: `https://dmigw.govcloud.dk/v2/climateData/collections/stationValue/items?`
@@ -288,7 +288,7 @@ The [queries](https://confluence.govcloud.dk/pages/viewpage.action?pageId=417182
  - `cellId` - Narrows the search to a specific cellId. There is a [website](https://dmidk.github.io/Climate-Data-Grid-Map/) where you can easily select your grid.
  - `timeResolution` - Narrows the search to a specific time resolution, i.e. `hour`,`day`,`month`,`year`.
 
-The list of all available parameterIds is the same as long as you request station data. If you wanna have grid data, municipality or country values, then there are fewer parameters available as the temporal resolution is lower. See [Website DMI](https://confluence.govcloud.dk/pages/viewpage.action?pageId=41717444).
+The list of all available parameterIds is the same as long as you request station data. If you wanna have grid data, municipality or country values, then there are fewer parameters available as the temporal resolution is lower. See [Website DMI](https://opendatadocs.dmi.govcloud.dk/Data/Climate_Data#parameters).
 
 ## Request data - Examples ##
 
@@ -444,13 +444,13 @@ plot(Temp_WD_ibts,col='indianred',col2='blue')
 
 # Comments #
 
-## urgent ##
+## General ##
 
-DMI changed all their urls, so they do not work at the moment. Further, the newly added example scripts like I have in this guide, thus making this guide a bit unnecessary.
+There is no guarentee that all the urls work. The last time I checked was on the 28/10/2024. Further, DMI recently added example scripts like I have in this guide, thus making this guide a bit unnecessary.
 
 ## Foulum weather station ##
 
-At the moment, you cannot use DMI's API service to request data from the Foulum weather station, as the station does not provide data to DMI yet. However, witin this year (2023) this should happen and then probably soon after you can access it via DMI's API service (in 10 min resolution). 
+At the moment, you cannot use DMI's API service to request data from the Foulum weather station, as the station does not provide data to DMI yet. However, within this year (2023) this should happen and then probably soon after you can access it via DMI's API service (in 10 min resolution). 
 Be aware that if you download the Foulum data from the agro website, the time stamps are in `UTC+1` resp. `ETC`. Like the regular DMI data, the time stamps also indicate the averages/sums of the last 10min/hour/day/month/year.
 
 ## Bulk request ##
@@ -458,5 +458,4 @@ Be aware that if you download the Foulum data from the agro website, the time st
 If you want to download large quantities of climate data, DMI recommends that you use DMI’s bulk download service. The service lets you download .zip files, each containing historical data for a month going back to a long time (Observational data: 1953, Climate data: 2011 for Denmark and 1958 for Greenland). You can also download all historical data by selecting the file all.zip. In this documentation, bulk requests are however not covered yet.
 
 
-<h6>The DMI API service is a great tool for accessing data for free. This guide was written by Marcel and a lot of things were copied from the DMI website.
-  If you encounter any problems, you can write me an <a href='mailto:mb@bce.au.dk'>email</a></h6>
+<h6>The DMI API service is a great tool for accessing data for free. This guide was written by Marcel and a lot of things were copied from the DMI website. If you encounter any problems, you can write me an <a href='mailto:mb@bce.au.dk'>email</a></h6>
