@@ -1,24 +1,24 @@
 # Access DMI via API #
 
-This document provides instructions on how to use API access to DMI (Danish Meteorological Institute) using R. Examples are given for the meteorological observations *(Observationsdata)* and the [climate data *(Klimadata)*.
+This document provides instructions on how to utilise the Application Programming Interface (API) to access the Danish Meteorological Institute (DMI) using the R statistical computing software. It includes illustrative examples for the meteorological observations *(Observationsdata)* and the climate data *(Klimadata)*.
 
 ## User Creation ##
 
-Before you start downloading data from the API, you need to:
+Prior to initiating the download of data via the API, it is necessary to complete the following steps:
   1. Register as a user in DMI's [Developer Portal](https://dmiapi.govcloud.dk/#!/)
-  2. Register an application in the Developer Portal and get your "API Key"
-  3. Save the API key somewhere safe, because you need it every time you make a request for the API. Otherwise, you will not be authorised by the API. For more information, see the [User Creation page](https://opendatadocs.dmi.govcloud.dk/en/Authentication).
-  4. You need to make different API keys for different applications, i.e., You can not use the same API key for observational/station data and climate data (grid data). Just make an additional one and make sure that you remember which is for what. 
+  2. Register an application in the Developer Portal and obtain an API key.
+  3. Save the key in a secure location, as it will be required each time a request is made to the API. In the absence of these prerequisites, the API will not authorise the user. Further information can be found on the [User Creation page](https://opendatadocs.dmi.govcloud.dk/en/Authentication).
+  4. It is necessary to create distinct API keys for each application. It is not possible to utilise a single API key for both observational/station data and climate data (grid data). It is recommended to save the purpose of each API key with the key itself. 
 
-To summarize, to consume data from the DMI via API, you need to register as an user, register an application, and save the API key securely.
+In conclusion, in order to access data from the DMI via API, it is necessary to register as a user, register an application and save the API key in a secure manner.
 
 ## R packages ##
 
 The following `R` libraries are required to make the requests:
 
-  - `httr`: Needed to make requests
+  - `httr`: Needed to make a request
   - `jsonlite`: Needed to read files
-  - `data.table`: Best package for data manipulation :). This is not really necessary, but I highly recommend it :).
+  - `data.table`: Excellent package for large data manipulation. This is not really necessary, but I highly recommend it.
 
   ```R
   install.packages(c('httr','jsonlite','data.table'))
@@ -30,9 +30,9 @@ The following `R` libraries are required to make the requests:
 
 # Meteorological observational data #
 
-The meteorological observation (metObs) API service contains raw weather observation data, e.g. wind, temperature, and precipitation data, from DMI owned stations located in Denmark and Greenland. You can read more about meteorological observations and how they are attained under [data information](https://opendatadocs.dmi.govcloud.dk/en/Data/Meteorological_Observation_Data).
+The meteorological observation (metObs) API service contains raw weather observation data, e.g., wind, temperature, and precipitation data, from DMI owned stations located in Denmark and Greenland. You can read more about meteorological observations and how they are attained under [data information](https://opendatadocs.dmi.govcloud.dk/en/Data/Meteorological_Observation_Data).
 
-If you want to download large quantities of historical meteorological observation data, DMI recommends that you use thier bulk download service. In this guide I do not yet cover the bulk request (I just loop over it).
+If you want to download large quantities of historical meteorological observation data, DMI recommends that you use thier bulk download service. In this guide I do not yet cover the bulk request (I just use a loop).
 
 ## Input list ##
 
@@ -40,7 +40,7 @@ There are different [queries](https://opendatadocs.dmi.govcloud.dk/en/APIs/Meteo
  - `API-key` - This is always necessary
  - `url` - This is always necessary. There are different url's for different base requests.
  - `stationId` - This is used if you wanna have data from only a certain station. The station ID can either be found with a basic request with the station url or on the [DMI station list](https://opendatadocs.dmi.govcloud.dk/Data/Meteorological_Observation_Data_Stations)
- - `datetime` - With this you can defien the time range of the data. Different formats are possible. More information in the documentation linked above.
+ - `datetime` - With this you can define the time range of the data. Different formats are possible. More information in the documentation linked above.
  - `parameterId` - Define which parameter you need. Below is a list (actually a vector) of all possible parameters.
  - `limit` - Define how many rows/entries you need. Default is 1,000. Max is 300,000.
  - `bbox` - This is useful if you wanna select stations in a certian area. The query is southwest corner and northeast corner i.e., `LON1,LAT1,LON2,LAT2`. Otherwiese, just look at the [map](https://www.dmi.dk/friedata/observationer/) with the station network. If you have a stationId defined, there is no need for `bbox`.
@@ -168,12 +168,12 @@ WS_data[parameterId %in% c('humidity','pressure','temp_dry'),{
 ### Time stamp of DMI data ###
 
 The time stamp of the DMI data are given in `UTC`.
-The rule of thumb is that the time stamp indicates the end of the interval. Assumed, that you have temperature data for every 10 minutes and that the data point is 25.32 °C at time 16:00. That means that between 15:50 and 16:00 the average temperature was 25.32 °C. It is the same with hourly, daily, montly and yearly data points. Or, assumed that you have daily temperature data and that the data point is -10.00 °C at the date 07-01-2021. That means that between 06-01-2021 00:00 and 07-01-2021 00:00 the average temperature was -10.00 °C. The same is true for wind direction, wind speed, relative humidity, etc.
-However for e.g. precipitation, the 10 minute data points are a sum of the fallen precipitation measured within those last 10 minutes. The rule regarding the time stamp still applies.
+The rule of thumb is that the time stamp indicates the end of the interval. Assumed, that you have temperature data for every 10 minutes and that the data point is 25.32 °C at time 16:00. That means that between 15:50 and 16:00 the average temperature was 25.32 °C. It is the same with hourly, daily, monthly and yearly data points. Or, assumed that you have daily temperature data and that the data point is -10.00 °C at the date 07-01-2021. That means that between 06-01-2021 00:00 and 07-01-2021 00:00 the average temperature was -10.00 °C. The same is true for wind direction, wind speed, relative humidity, etc.
+However for e.g., precipitation, the 10 minutes data points are a sum of the fallen precipitation measured within those last 10 minutes. The rule regarding the time stamp still applies.
 
 ## Multiple data requests ##
 
-It is not possible to make multiple station or parameter etc requests at the same time (error 400), but you can loop the data to solve this. An other option would be using the bulk request on DMI (a guide to that might follow later).
+It is not possible to make multiple station or parameter, etc requests at the same time (error 400), but you can loop the data to solve this. An other option would be using the bulk request on DMI (a guide to that might follow later).
 
 ### Example for multiple parameter IDs ###
 
@@ -262,7 +262,7 @@ stat_list <- lapply(req_stations, function(x) {
 })
 WS_data <- rbindlist(stat_list)
 ```
-It would even be faster if instead of `paste0` the parameters are directly used in the `GET` function, but I am too lazy for that as it does not really fit with how I did it above. Also if multiple queries with multiple requests are used, you could first write a function that will do it but I was also too lazy for that. I might do it on a later time.
+It would even be faster if instead of `paste0` the parameters are directly used in the `GET` function, but I am too lazy for that as it does not really fit with how I did it above. Also if multiple queries with multiple requests are used, you could first write a function that will do it but I was also too lazy for that. I might do it on a later time (in my personal there is a function for that).
 
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -450,8 +450,8 @@ There is no guarentee that all the urls work. The last time I checked was on the
 
 ## Foulum weather station ##
 
-At the moment, you cannot use DMI's API service to request data from the Foulum weather station, as the station does not provide data to DMI yet. However, within this year (2023) this should happen and then probably soon after you can access it via DMI's API service (in 10 min resolution). 
-Be aware that if you download the Foulum data from the agro website, the time stamps are in `UTC+1` resp. `ETC`. Like the regular DMI data, the time stamps also indicate the averages/sums of the last 10min/hour/day/month/year.
+The Foulum weather station is no accessible via DMI's API. The station ID is 06069. 
+Be aware that if you download the Foulum data from the [agro website](https://agro-web11t.uni.au.dk/klimadb/), the time stamps are in `UTC+1` resp. `ETC`. Like the regular DMI data, the time stamps also indicate the averages/sums of the last 10min/hour/day/month/year.
 
 ## Bulk request ##
 
