@@ -11,7 +11,7 @@ At the moment it works with the `.csv` files.
 The function has the following arguments.
 
 ```R
-function(Folder, From=NULL, To=NULL, Device = NULL, latest = FALSE,cut = TRUE)
+function(Folder, From = NULL, To = NULL, Device = NULL, latest = FALSE, cut = TRUE)
 ```
 
 - `Folder`: A path to the directory with the `.csv` files. This also can be a top directory as the funciton is recursive.
@@ -23,6 +23,7 @@ function(Folder, From=NULL, To=NULL, Device = NULL, latest = FALSE,cut = TRUE)
 
 ## Notes ##
 - If you wanna have such a function for your HOBO sensor (different model type), please send me some example files of your sensor and I might be able to include it in the function.
+- In case you read different sensor types, it will put them all together.
 - In the far future I might implement that the function can also read .hobo or .xlsx
 
 #### by Marcel
