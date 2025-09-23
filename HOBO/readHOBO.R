@@ -12,7 +12,7 @@ library(data.table)
 library(lubridate)
 
 readHOBO <- function(Folder, From = NULL, To = NULL, Device = NULL, latest = FALSE, cut = TRUE){
-	# browser()
+# browser()
 	all_files <- list.files(Folder, recursive = TRUE, full.names = TRUE, pattern = '.csv')
 		
 	## select only the relevant devices
@@ -36,7 +36,7 @@ readHOBO <- function(Folder, From = NULL, To = NULL, Device = NULL, latest = FAL
 
 	HOBO_ls <- lapply(dt_devices[, unique(Dev)], function(k) {
 		tryCatch({
-			# browser()
+# browser()
 			dt_sub <- dt_devices[Dev == k]
 
 			if(latest) {
@@ -73,15 +73,21 @@ readHOBO <- function(Folder, From = NULL, To = NULL, Device = NULL, latest = FAL
 				stop('Your chosen "To" time is before the available data.')
 			} # error message
 			
-			# browser()
-			# also select one file earlier and one file later
+# browser()
+			# also select one file earlier and one file later, but only if it exists
 			i_From <- which(dt_sub2[, date_time >= FROM])[1] - 1
-			i_To <- ifelse(is.na(which(dt_sub2[, date_time >= TO])[1]), tail(which(dt_sub2[, date_time < TO]), n = 1), tail(which(dt_sub2[, date_time >= TO]), n = 1))
+			if (i_From == 0) {
+				i_From <- 1
+			}
+			i_To <- which(dt_sub2[, date_time >= TO])[2]
+			if (is.na(i_To)) {
+				i_To <- dt_sub2[, .N] # take the last
+			}
 			files_select <- dt_sub2[i_From : i_To, file_path]
 
 			## read in data:
 			device_ls <- lapply(files_select, function(x) {
-				# browser()
+# browser()
 				out <- fread(x, sep = ',', fill = TRUE)
 				if(any(grep('Dew', names(out)))) {
 					setnames(out, new = c('Device', 'Date', 'Temp', 'RH', 'DewPt', gsub(' ', '_', names(out[, 6:ncol(out)]))))
@@ -90,7 +96,24 @@ readHOBO <- function(Folder, From = NULL, To = NULL, Device = NULL, latest = FAL
 				}
 				out[, Device := as.character(Device)]
 				out[, Device := k]
-				out[, st := as.POSIXct(Date, '%m/%d/%Y %H:%M:%S', tz = 'CET')] # convert times
+# browser()				
+				## make initial time as there is an issue with daylight saving time
+				out[, st_initial := as.POSIXct(Date, '%m/%d/%Y %H:%M:%S', tz = 'Europe/Copenhagen')]
+
+				# Find duplicated timestamps
+				out[, is_dup := duplicated(st_initial) | duplicated(st_initial, fromLast = TRUE)]
+
+				# For duplicated times, give an index per duplicated group
+				out[is_dup == TRUE, dup_idx := seq_len(.N), by = st_initial]
+
+				# Create new POSIXct column to disambiguate duplicated times
+				out[is_dup == TRUE & dup_idx == 1, st_new := as.POSIXct(Date, format = '%m/%d/%Y %H:%M:%S', tz = "Europe/Copenhagen")]  # First occurrence = DST (CEST)
+				out[is_dup == TRUE & dup_idx == 2, st_new := as.POSIXct(Date, format = '%m/%d/%Y %H:%M:%S', tz = "Etc/GMT-1")]      # Second occurrence = Winter time
+				out[is_dup == FALSE, st_new := st_initial]  # Non-duplicates keep original parsed time
+				out[, st := with_tz(st_new, tz = 'Etc/GMT-1')] # switch everything to winter time
+				## remove all the time related columns except st
+				out[, c('Date','st_initial', 'is_dup', 'dup_idx', 'st_new') := NULL]
+
 				if(cut) {
 					out1 <- out[, .SD, .SDcols = intersect(c('Device', 'st', 'Temp', 'RH', 'DewPt'), names(out))]
 				} else {
