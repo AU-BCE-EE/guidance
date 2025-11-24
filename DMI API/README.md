@@ -1,49 +1,146 @@
 # Access DMI via API #
 
-This document provides instructions on how to utilise the Application Programming Interface (API) to access the Danish Meteorological Institute (DMI) using the R statistical computing software. It includes illustrative examples for the meteorological observations *(Observationsdata)* and the climate data *(Klimadata)*.
+This document provides instructions on how to utilise the Application Programming Interface (API) to access data from the Danish Meteorological Institute (DMI) using the R statistical computing software. It includes illustrative examples for the meteorological observations *(Observationsdata)* and the climate data *(Klimadata)*.
 
-## User Creation ##
+At the time I wrote the first version of this guide (August 2024), there was no detailed information on DMI. Now, they have their on guides that are quite detailed and makes this one a bit obsolete.
+
+## Getting started ##
+
+### User creation ###
 
 Prior to initiating the download of data via the API, it is necessary to complete the following steps:
-  1. Register as a user in DMI's [Developer Portal](https://dmiapi.govcloud.dk/#!/)
-  2. Register an application in the Developer Portal and obtain an API key.
+  1. Register as a user in DMI's [Developer Portal](https://dmiapi.govcloud.dk/#!/).
+  2. Register an application in the developer portal and obtain an API key.
   3. Save the key in a secure location, as it will be required each time a request is made to the API. In the absence of these prerequisites, the API will not authorise the user. Further information can be found on the [User Creation page](https://opendatadocs.dmi.govcloud.dk/en/Authentication).
   4. It is necessary to create distinct API keys for each application. It is not possible to utilise a single API key for both observational/station data and climate data (grid data). It is recommended to save the purpose of each API key with the key itself. 
 
-In conclusion, in order to access data from the DMI via API, it is necessary to register as a user, register an application and save the API key in a secure manner.
 
-## R packages ##
+### R packages ###
 
 The following `R` libraries are required to make the requests:
 
   - `httr`: Needed to make a request
   - `jsonlite`: Needed to read files
-  - `data.table`: Excellent package for large data manipulation. This is not really necessary, but I highly recommend it.
+
+  Further, I recommend using the package
+  - `data.table`: It is an excellent package for large data manipulation. This is not really necessary, but I highly recommend it.
 
   ```R
-  install.packages(c('httr','jsonlite','data.table'))
+  install.packages(c('httr', 'jsonlite', 'data.table'))
 
   library(httr)
   library(jsonlite)
   library(data.table)
   ```
 
-# Meteorological observational data #
+## Station information ##
 
-The meteorological observation (metObs) API service contains raw weather observation data, e.g., wind, temperature, and precipitation data, from DMI owned stations located in Denmark and Greenland. You can read more about meteorological observations and how they are attained under [data information](https://opendatadocs.dmi.govcloud.dk/en/Data/Meteorological_Observation_Data).
+The meteorological observation (metObs) API service contains besides [raw weather observation data](#meteorological-observation-data) also information about the different stations that are available on DMI. This is useful, if you wanna see what stations are available within a certain area, or what kind of parameters are logged at certain stations.
 
-If you want to download large quantities of historical meteorological observation data, DMI recommends that you use thier bulk download service. In this guide I do not yet cover the bulk request (I just use a loop).
-
-## Input list ##
+### Input list ###
 
 There are different [queries](https://opendatadocs.dmi.govcloud.dk/en/APIs/Meteorological_Observation_API#collections) you can use to make your request. Here are the most important queries:
- - `API-key` - This is always necessary
- - `url` - This is always necessary. There are different url's for different base requests.
- - `stationId` - This is used if you wanna have data from only a certain station. The station ID can either be found with a basic request with the station url or on the [DMI station list](https://opendatadocs.dmi.govcloud.dk/Data/Meteorological_Observation_Data_Stations)
+ - `API-key` - This is always necessary. You need an API specific for this purpose.
+ - `url` - This is always necessary. There are different urls for different base requests.
+ - `bbox` - This is useful if you wanna select stations in a certian area. The query is southwest corner and northeast corner i.e., `LON1, LAT1, LON2, LAT2`. An easier approach would be just looking at the [map](https://www.dmi.dk/friedata/observationer/) (or [here](https://www.dmi.dk/vejrdata/maalinger) in case the previous link does not work). If you have a `stationId` defined, there is no need for `bbox`.
+ - `stationId` - This is used if you wanna have data from only a certain station. The station ID can either be found with a basic request, the  or on the [map](https://www.dmi.dk/friedata/observationer/) or the [DMI station list](https://opendatadocs.dmi.govcloud.dk/Data/Meteorological_Observation_Data_Stations).
+ 
+
+### Request data ###
+
+For a better overview of your code, I suggest assigning the different queries to variables. Except from the urls, the queries will have the following structure in the request `'query_name=your_input'`. If you narrow down your request with multiple queries, they will be separated by `&`.
+```R
+API <- 'api-key=12345-6789-abcd-efgh-987654321' # This is an example API key.
+url <- 'https://dmigw.govcloud.dk/v2/metObs/collections/station/items?' # The url needed to access station information.
+stationId <- paste0('stationId=', '06060')
+bbox <- paste0('bbox=', '9.52,56.44,9.62,56.52')
+```
+
+#### Make a base request ####
+
+```R
+GET(paste(url, API, sep = '&'))
+```
+```HTML
+Response [https://dmigw.govcloud.dk/v2/metObs/collections/observation/items?&api-key=12345-6789-abcd-efgh-987654321]
+  Date: 2025-11-19 10:33
+  Status: 200
+  Content-Type: application/json
+  Size: 546 kB
+```  
+You should get a status code `200`, indicating a successful request. If you get another code then there is something wrong. Check this [website](https://www.restapitutorial.com/httpstatuscodes.html) to figure out what your status code means.
+
+Use the `fromJSON()` function to make the response readable:
+```R
+station_raw <- GET(paste(url, API, sep = '&'))
+station_info <- fromJSON(rawToChar(station_raw$content))
+```
+Your output should look more or less like this. Note, that for the purpose of a better overview, I changed a bit the display of `$features`. 
+```HTML
+$type
+[1] "FeatureCollection"
+
+$features
+        type                                   id geometry.type geometry.coordinates  properties.owner properties.country properties.anemometerHeight properties.wmoCountryCode properties.operationFrom                                                                                         properties.parameterId   properties.created properties.barometerHeight properties.validFrom properties.type properties.stationHeight properties.regionId   properties.name properties.wmoStationId properties.operationTo properties.updated properties.stationId   properties.validTo properties.status
+  1 Feature 46d09e86-8053-f1e6-f765-e15021297cab         Point       4.2719,56.3442 Havne Kommuner mv                DNK                          NA                      6080     2012-05-01T00:00:00Z                                                 cloud_height,pressure,temp_dew,temp_dry,visibility,weather,... 2025-06-23T06:18:29Z                         NA 2012-05-01T00:00:00Z           Synop                  999.000                   6          Harald B                   06018                   <NA>                 NA                06018 2023-10-25T09:48:08Z            Active
+  2 Feature f19dea2f-dc94-2a19-919a-2eb592626891         Point       4.2719,56.3442 Havne Kommuner mv                DNK                          NA                      6080     2012-05-01T00:00:00Z                                                 cloud_height,pressure,temp_dew,temp_dry,visibility,weather,... 2025-06-23T06:18:29Z                         NA 2023-10-25T09:48:08Z           Synop                 -999.000                   6          Harald B                   06018                   <NA>                 NA                06018 2023-10-26T07:09:52Z            Active
+  3 Feature 19e64c5a-68ce-51f3-5e8f-d22fb54d3d24         Point       4.2719,56.3442 Havne Kommuner mv                DNK                          NA                      6080     2012-05-01T00:00:00Z                                                 cloud_height,pressure,temp_dew,temp_dry,visibility,weather,... 2025-06-23T06:18:29Z                      25.20 2023-10-26T07:09:52Z           Synop                   46.330                   6          Harald B                   06018                   <NA>                 NA                06018                 <NA>            Active
+  4 Feature a1bb563b-865f-298b-22eb-5a545dedbd40         Point       8.6412,56.9300               DMI                DNK                          NA                      6080     2002-03-22T00:00:00Z humidity,humidity_past1h,leav_hum_dur_past10min,leav_hum_dur_past1h,precip_dur_past10min,precip_dur_past1h,... 2025-06-23T06:18:29Z                         NA 2002-03-22T00:00:00Z           Synop                   42.000                   6          Silstrup                   06019                   <NA>                 NA                06019 2019-01-30T15:20:15Z            Active
+  5 Feature d6a436c9-bd9e-2d22-dd3e-836e1f60b31d         Point       8.6412,56.9300               DMI                DNK                          10                      6080     2002-03-22T00:00:00Z humidity,humidity_past1h,leav_hum_dur_past10min,leav_hum_dur_past1h,precip_dur_past10min,precip_dur_past1h,... 2025-06-23T06:18:29Z                         NA 2019-01-30T15:20:15Z           Synop                   42.000                   6          Silstrup                   06019                   <NA>                 NA                06019                 <NA>            Active
+ ---                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
+635 Feature dbe54b7d-9673-cca0-53d0-d7bfbe1eac3c         Point      -6.5766,62.2178 Havne Kommuner mv                FRO                          NA                      6080     2009-05-18T00:00:00Z                                 cloud_cover,cloud_height,humidity,humidity_past1h,pressure,pressure_at_sea,... 2025-06-23T06:18:29Z                         NA 2020-12-14T14:18:31Z           Synop                   80.000                   6 Klaksvik Heliport                   06013                   <NA>                 NA                06013 2024-11-22T13:54:41Z            Active
+636 Feature db8b6123-e688-bf23-92db-eb18c7366f4a         Point      -6.5766,62.2178 Havne Kommuner mv                FRO                          NA                      6080     2009-05-18T00:00:00Z                                 cloud_cover,cloud_height,humidity,humidity_past1h,pressure,pressure_at_sea,... 2025-06-23T06:18:29Z                         NA 2024-11-22T13:54:41Z           Synop                   80.162                   6 Klaksvik Heliport                   06013                   <NA>                 NA                06013                 <NA>            Active
+637 Feature fed97669-73f4-60ca-4282-a3f833c47ab2         Point      -7.0740,62.2995 Havne Kommuner mv                FRO                          NA                      <NA>     2022-05-25T00:00:00Z                           humidity,humidity_past1h,precip_past10min,precip_past1h,pressure,pressure_at_sea,... 2025-06-23T06:18:29Z                     174.00 2022-05-25T00:00:00Z           Synop                  176.400                <NA>              Eioi                    <NA>                   <NA>                 NA                06014 2024-05-28T07:51:28Z            Active
+638 Feature dd576007-938c-1d65-dc72-4e75d94d4620         Point      -7.0740,62.2995 Havne Kommuner mv                FRO                          NA                      <NA>     2022-05-25T00:00:00Z                           humidity,humidity_past1h,precip_past10min,precip_past1h,pressure,pressure_at_sea,... 2025-06-23T06:18:29Z                     177.36 2024-05-28T07:51:28Z           Synop                  176.500                <NA>              Eioi                    <NA>                   <NA>                 NA                06014 2024-06-14T08:51:00Z            Active
+639 Feature 48df3aba-c1bd-4627-67b3-0070eb0ffcdd         Point      -7.0740,62.2995 Havne Kommuner mv                FRO                          NA                      <NA>     2022-05-25T00:00:00Z                           humidity,humidity_past1h,precip_past10min,precip_past1h,pressure,pressure_at_sea,... 2025-06-23T06:18:29Z                     177.36 2024-06-14T08:51:00Z           Synop                  176.500                <NA>              Eidi                    <NA>                   <NA>                 NA                06014                 <NA>            Active
+
+$timeStamp
+[1] "2025-11-19T10:35:00Z"
+
+$numberReturned
+[1] 639
+
+$links
+                                                                                                                   href  rel                 type               title
+1            https://dmigw.govcloud.dk/v2/metObs/collections/station/items?api-key=12345-6789-abcd-efgh-987654321 self application/geo+json       This document
+2 https://dmigw.govcloud.dk/v2/metObs/collections/station/items?api-key=12345-6789-abcd-efgh-987654321&offset=639 next application/geo+json Next set of results
+```
+
+In `station_info$features` there is all the necesary info saved. The station ID can be found under `station_info$features$properties$stationId`. If you wanna check the parameters available for a certain station e.g., `06074`, then I recommend using a data.table.
+```R
+dt <- as.data.table(station_info$features$properties)
+dt[stationId == '06074']
+```
+There are four entries with that station. We are only interested in the one still running
+```R
+dt[stationId == '06074' & is.na(validTo), unlist(parameterId)]
+```
+The output should look like this
+```HTML
+> dt[stationId == '06074' & is.na(validTo), unlist(parameterId)]
+ [1] "cloud_cover"              "cloud_height"             "humidity"                 "humidity_past1h"          "precip_dur_past10min"     "precip_dur_past1h"       
+ [7] "precip_past10min"         "precip_past1h"            "pressure"                 "pressure_at_sea"          "temp_dew"                 "temp_dry"                
+[13] "temp_max_past12h"         "temp_max_past1h"          "temp_mean_past1h"         "temp_min_past12h"         "temp_min_past1h"          "visib_mean_last10min"    
+[19] "visibility"               "weather"                  "wind_dir"                 "wind_dir_past1h"          "wind_gust_always_past1h"  "wind_max"                
+[25] "wind_max_per10min_past1h" "wind_min"                 "wind_min_past1h"          "wind_speed"               "wind_speed_past1h" 
+```
+
+## Meteorological observation data ##
+
+The meteorological observation (metObs) API service contains besides [station information](#station-information) meteorological observation data e.g., wind, temperature, and precipitation. You can read more about meteorological observations and how they are attained under [data information](https://opendatadocs.dmi.govcloud.dk/en/Data/Meteorological_Observation_Data).
+
+If you want to download large quantities of historical meteorological observation data, DMI recommends that you use thier bulk download service. In this guide I do not (yet) cover the bulk request (I just use a loop).
+
+### Input list ###
+
+There are different [queries](https://opendatadocs.dmi.govcloud.dk/en/APIs/Meteorological_Observation_API#collections) you can use to make your request. Here are the most important queries:
+ - `API-key` - This is always necessary.
+ - `url` - This is always necessary. You need an API specific for this purpose.
+ - `stationId` - This is used if you wanna have data from only a certain station. The station ID can either be found with a [basic request](#station-information) with the station url or on the [DMI station list](https://opendatadocs.dmi.govcloud.dk/Data/Meteorological_Observation_Data_Stations).
  - `datetime` - With this you can define the time range of the data. Different formats are possible. More information in the documentation linked above.
- - `parameterId` - Define which parameter you need. Below is a list (actually a vector) of all possible parameters.
- - `limit` - Define how many rows/entries you need. Default is 1,000. Max is 300,000.
- - `bbox` - This is useful if you wanna select stations in a certian area. The query is southwest corner and northeast corner i.e., `LON1,LAT1,LON2,LAT2`. Otherwiese, just look at the [map](https://www.dmi.dk/friedata/observationer/) with the station network. If you have a stationId defined, there is no need for `bbox`.
+ - `parameterId` - Define which parameter you need. Below, is a list (actually a vector) of all possible parameters.
+ - `limit` - Define how many rows/entries you need. The default is 1,000 and the maximum is 300,000.
+ - `bbox` - This is useful if you wanna select stations in a certian area. The query is southwest corner and northeast corner i.e., `LON1, LAT1, LON2, LAT2`. Otherwiese, just look at the [map](https://www.dmi.dk/friedata/observationer/) (or [here](https://www.dmi.dk/vejrdata/maalinger) in case the previous link does not work). If you have a `stationId` defined, there is no need for `bbox`.
 
 List of all available parameterIds:
 ```R
@@ -56,42 +153,38 @@ parameterId_vec <- c("temp_dry", "temp_dew", "temp_mean_past1h", "temp_max_past1
   "sun_last10min_glob", "sun_last1h_glob", "leav_hum_dur_past10min", "leav_hum_dur_past1h")
 ```
 
-### Some comments to the way I do it ###
+#### Make a request ####
 
 For a better overview of your code, I suggest assigning the different queries to variables. Except from the urls, the queries will have the following structure in the request `'query_name=your_input'`. If you narrow down your request with multiple queries, they will be separated by `&`.
+In this example, I request temperature data (`temp_dry`) for the station Århus Syd (stationId = 06074) for the time 01. April 2023 00:00:00 to 30. April 2023 04:00:00.
 ```R
 API <- 'api-key=12345-6789-abcd-efgh-987654321' # this is just a random API key I made up.
 url <- 'https://dmigw.govcloud.dk/v2/metObs/collections/observation/items?' # url for accessing observational data
-url_stat <- 'https://dmigw.govcloud.dk/v2/metObs/collections/station/items?' # url for list of stations and see what parameters are (or rather should be) available at each station, etc
-stationId <- paste0('stationId=', '06060')
+stationId <- paste0('stationId=', '06074')
 datetime <- paste0('datetime=', '2023-04-01T00:00:00Z/2023-04-30T04:00:00Z')
-parameterId <- paste0('parameterId=', 'wind_dir')
-limit <- paste0('limit=', '10000')
-bbox <- paste0('bbox=', '9.52,56.44,9.62,56.52')
+parameterId <- paste0('parameterId=', 'temp_dry')
+limit <- paste0('limit=', '300000')
 ```
-
-## Request data ##
-
-Make a base request
+Make a request with all the queries and assign it to a new variable
 ```R
-GET(paste(url,API,sep='&'))
+GET(paste(url, stationId, datetime, parameterId, limit, API, sep = '&'))
 ```
 ```HTML
 Response [https://dmigw.govcloud.dk/v2/metObs/collections/observation/items?&api-key=12345-6789-abcd-efgh-987654321]
-  Date: 2023-09-20 09:29
+  Date: 2025-11-24 14:07
   Status: 200
   Content-Type: application/json
-  Size: 273 kB
+  Size: 1.09 MB
 ```  
 You should get a status code `200`, indicating a successful request. If you get another code then there is something wrong. Check this [website](https://www.restapitutorial.com/httpstatuscodes.html) to figure out what your status code means.
 
-Make a request with multiple queries and assign it to a new variable
+Let's assign your request to a variable for further treatment.
 ```R
-v1 <- GET(paste(url,stationId,datetime,limit,API,sep='&'))
+meteo_raw <- GET(paste(url, stationId, datetime, parameterId, limit, API, sep = '&'))
 ```
-Use the `fromJSON` function to make the response readable:
+Use the `fromJSON()` function to make the response readable:
 ```R
-WS_raw <- fromJSON(rawToChar(v1$content))
+meteo <- fromJSON(rawToChar(meteo_raw$content))
 ```
 Your output should look more or less like this. Note, that for the purpose of a better overview, I changed a bit the display of `$features`. 
 ```HTML
@@ -99,24 +192,24 @@ $type
 [1] "FeatureCollection"
 
 $features
-geometry.coordinates  geometry.type                                    id     type           properties.created   properties.observed  properties.parameterId properties.stationId  properties.value
-1      9.1138,56.2935         Point  01a643bc-f804-3287-7484-dd1bb6eaf4ac  Feature  2023-07-07T17:28:15.942898Z  2023-04-30T04:00:00Z         humidity_past1h                06060             81.0
-2      9.1138,56.2935         Point  0ad93de0-048b-b120-f267-53dea445793b  Feature  2023-07-07T20:18:35.894407Z  2023-04-30T04:00:00Z       precip_dur_past1h                06060              0.0
-3      9.1138,56.2935         Point  0c95a2b7-026f-61a0-31fb-7a701579d949  Feature  2023-07-08T10:02:01.408694Z  2023-04-30T04:00:00Z  temp_grass_mean_past1h                06060              0.8
-4      9.1138,56.2935         Point  130a3495-e842-46a6-3af2-14d00e0343bf  Feature  2023-07-08T07:50:47.541576Z  2023-04-30T04:00:00Z                wind_dir                06060            268.0
-5      9.1138,56.2935         Point  1a6a8051-18bb-ed8a-fb56-454008ab1551  Feature  2023-07-08T10:02:01.408648Z  2023-04-30T04:00:00Z   temp_grass_max_past1h                06060              1.7
----                                                                                                                                                                                              
-9996   9.1138,56.2935         Point  d9b790c1-3443-8175-d29d-8f80ffb1a9bf  Feature  2023-07-08T12:21:12.782107Z  2023-04-26T08:30:00Z              visibility                06060          55000.0
-9997   9.1138,56.2935         Point  e2a2f26a-da4a-9605-c5f5-5f1042c1e4e9  Feature  2023-07-08T07:50:30.944071Z  2023-04-26T08:30:00Z              temp_grass                06060              6.2
-9998   9.1138,56.2935         Point  e2f16a35-17a4-960e-76e8-863cf40b2164  Feature  2023-07-07T17:28:01.659404Z  2023-04-26T08:30:00Z         pressure_at_sea                06060           1011.2
-9999   9.1138,56.2935         Point  e6d1001d-59fb-f7b7-7e83-5fa6e753f0a6  Feature  2023-07-08T07:50:30.944120Z  2023-04-26T08:30:00Z                wind_dir                06060            290.0
-10000  9.1138,56.2935         Point  e983f212-ded5-aa92-9c9b-3c2d80a3862f  Feature  2023-07-08T07:50:30.944206Z  2023-04-26T08:30:00Z              wind_speed                06060              8.8
+         type                                   id geometry.type geometry.coordinates properties.parameterId          properties.created properties.value  properties.observed properties.stationId
+   1 Feature 93720b64-7f13-1b36-d4cd-9c15e74ef393         Point      10.1353,56.0803               temp_dry 2025-08-05T01:39:12.243219Z              2.3 2023-04-30T04:00:00Z                06074
+   2 Feature 1b9b52ef-a9c3-f975-d1a4-2daa90b5cc98         Point      10.1353,56.0803               temp_dry 2025-08-05T01:39:12.110644Z              2.2 2023-04-30T03:50:00Z                06074
+   3 Feature 77389e2a-225e-6135-72da-503f3ee57557         Point      10.1353,56.0803               temp_dry 2025-08-05T01:39:12.097156Z              2.3 2023-04-30T03:40:00Z                06074
+   4 Feature e0fcb986-bcd4-3ae3-31be-a3d602db2047         Point      10.1353,56.0803               temp_dry 2025-08-05T01:39:12.083126Z              2.5 2023-04-30T03:30:00Z                06074
+   5 Feature 6687523d-00b0-5d2c-f0ec-5c608b178170         Point      10.1353,56.0803               temp_dry 2025-08-05T01:39:12.068573Z              2.7 2023-04-30T03:20:00Z                06074
+  ---                                                                                                                                                                                              
+4061 Feature 5e89288f-f5ea-cf6b-e20d-ba04b39385df         Point      10.1353,56.0803               temp_dry 2025-08-05T03:07:01.655345Z              2.7 2023-04-01T00:40:00Z                06074
+4062 Feature d2b2663f-cf36-4fa0-bec7-afe67f4b6967         Point      10.1353,56.0803               temp_dry 2025-08-05T03:07:01.640449Z              2.8 2023-04-01T00:30:00Z                06074
+4063 Feature cdac45e6-1df6-97ca-f727-d1a1ce192c50         Point      10.1353,56.0803               temp_dry 2025-08-05T03:07:01.625887Z              2.7 2023-04-01T00:20:00Z                06074
+4064 Feature 2acf9116-2fd2-f089-5101-43f3a2db5f3a         Point      10.1353,56.0803               temp_dry 2025-08-05T03:07:01.610677Z              2.9 2023-04-01T00:10:00Z                06074
+4065 Feature 39771555-26c2-bd1b-23f0-ab3215807699         Point      10.1353,56.0803               temp_dry 2025-08-05T03:07:01.595581Z              2.9 2023-04-01T00:00:00Z                06074
 
 $timeStamp
-[1] "2023-09-20T09:33:05Z"
+[1] "2025-11-24T13:59:28Z"
 
 $numberReturned
-[1] 10000
+[1] 4065
 
 $links
                                                                                                                                                                                                   href   rel                  type                title
@@ -125,148 +218,132 @@ $links
 
 ```
 
-Extract the relevant data (fourth list within the second list) and convert it to a data.table for better readability (In case you don't wanna use data.table, just don't use the fuction `as.data.table`)
+Extract the relevant data ($features$properties or fourth list within the second list) and convert it to a data table for better readability (In case you don't wanna use `data.table`, just don't use the fuction `as.data.table`)
 ```R
-WS_data <- as.data.table(WS_raw[[2]][[4]])
+meteo_data <- as.data.table(meteo[[2]][[4]])
+```
+or
+```R
+meteo_data <- as.data.table(meteo$features$properties)
 ```
 Display your data
 ```R
-WS_data
+meteo_data
 ```
 ```HTML
-                           created             observed            parameterId stationId   value
-    1: 2023-07-07T17:28:15.942898Z 2023-04-30T04:00:00Z        humidity_past1h     06060    81.0
-    2: 2023-07-07T20:18:35.894407Z 2023-04-30T04:00:00Z      precip_dur_past1h     06060     0.0
-    3: 2023-07-08T10:02:01.408694Z 2023-04-30T04:00:00Z temp_grass_mean_past1h     06060     0.8
-    4: 2023-07-08T07:50:47.541576Z 2023-04-30T04:00:00Z               wind_dir     06060   268.0
-    5: 2023-07-08T10:02:01.408648Z 2023-04-30T04:00:00Z  temp_grass_max_past1h     06060     1.7
-   ---                                                                                          
- 9996: 2023-07-08T12:21:12.782107Z 2023-04-26T08:30:00Z             visibility     06060 55000.0
- 9997: 2023-07-08T07:50:30.944071Z 2023-04-26T08:30:00Z             temp_grass     06060     6.2
- 9998: 2023-07-07T17:28:01.659404Z 2023-04-26T08:30:00Z        pressure_at_sea     06060  1011.2
- 9999: 2023-07-08T07:50:30.944120Z 2023-04-26T08:30:00Z               wind_dir     06060   290.0
-10000: 2023-07-08T07:50:30.944206Z 2023-04-26T08:30:00Z             wind_speed     06060     8.8
+      parameterId                     created value             observed stationId
+           <char>                      <char> <num>               <char>    <char>
+   1:    temp_dry 2025-08-05T01:39:12.243219Z   2.3 2023-04-30T04:00:00Z     06074
+   2:    temp_dry 2025-08-05T01:39:12.110644Z   2.2 2023-04-30T03:50:00Z     06074
+   3:    temp_dry 2025-08-05T01:39:12.097156Z   2.3 2023-04-30T03:40:00Z     06074
+   4:    temp_dry 2025-08-05T01:39:12.083126Z   2.5 2023-04-30T03:30:00Z     06074
+   5:    temp_dry 2025-08-05T01:39:12.068573Z   2.7 2023-04-30T03:20:00Z     06074
+  ---                                                                             
+4061:    temp_dry 2025-08-05T03:07:01.655345Z   2.7 2023-04-01T00:40:00Z     06074
+4062:    temp_dry 2025-08-05T03:07:01.640449Z   2.8 2023-04-01T00:30:00Z     06074
+4063:    temp_dry 2025-08-05T03:07:01.625887Z   2.7 2023-04-01T00:20:00Z     06074
+4064:    temp_dry 2025-08-05T03:07:01.610677Z   2.9 2023-04-01T00:10:00Z     06074
+4065:    temp_dry 2025-08-05T03:07:01.595581Z   2.9 2023-04-01T00:00:00Z     06074
 ```
+The temperature values are in the `value` column and the time stamp is saved in `observed`.
 
-Plot some of the data
-```R
-library(ggplot2)
-
-WS_data[parameterId %in% c('humidity','pressure','temp_dry'),{
-  X <- rbind(.SD)
-  X[,et := as.POSIXct(observed, format='%Y-%m-%dT%H:%M:%SZ',tz='UTC')]
-  ggplot(X, aes(x=et,y=value,colour=parameterId)) +
-  geom_point() +
-  xlab(NULL) +
-  facet_grid(parameterId ~ ., scale='free_y') +
-  theme_bw() +
-  theme(strip.background =element_rect(fill="white"),panel.grid = element_blank())
-}]
-```
-![Fig1](images/Fig1.png)
-
-### Time stamp of DMI data ###
+#### Time stamp of DMI data ####
 
 The time stamp of the DMI data are given in `UTC`.
 The rule of thumb is that the time stamp indicates the end of the interval. Assumed, that you have temperature data for every 10 minutes and that the data point is 25.32 °C at time 16:00. That means that between 15:50 and 16:00 the average temperature was 25.32 °C. It is the same with hourly, daily, monthly and yearly data points. Or, assumed that you have daily temperature data and that the data point is -10.00 °C at the date 07-01-2021. That means that between 06-01-2021 00:00 and 07-01-2021 00:00 the average temperature was -10.00 °C. The same is true for wind direction, wind speed, relative humidity, etc.
 However for e.g., precipitation, the 10 minutes data points are a sum of the fallen precipitation measured within those last 10 minutes. The rule regarding the time stamp still applies.
 
-## Multiple data requests ##
 
-It is not possible to make multiple station or parameter, etc requests at the same time (error 400), but you can loop the data to solve this. An other option would be using the bulk request on DMI (a guide to that might follow later).
 
-### Example for multiple parameter IDs ###
+### Multiple data requests ###
 
-Define the queries that have multiple entries:
+It is not possible to make multiple station or parameter, etc requests at the same time (error 400), but you can loop the data to solve this. Or in case your time span is rather short and you need multiple parameters from only one station, it is also possible to not define any `parameterId` and then all the data will be downloaded and you can select the preferred data afterwrds. An other option would be using the bulk request on DMI (not covered in this guide).
+
+#### Example for multiple parameterIds ####
+
+Define the queries that have multiple entries and loop over it, preferably using `lapply` for better speed.
 ```R
 req_parameter <- c('temp_dry', 'temp_dew', 'wind_dir')
-```
-Create a list:
-```R
-par_list <- as.list(req_parameter)
-```
-Loop through the parameter IDs and make the requests:
-```R
-for(i in seq_along(req_parameter)){
-    parameterId <- paste0('parameterId=', req_parameter[i])
-    v2 <- GET(paste(url,stationId,datetime,limit,parameterId,API,sep='&'))
-    WS_raw <- fromJSON(rawToChar(v2$content))
-    par_list[[i]] <- as.data.table(WS_raw[[2]][[4]])
- }
-```
-Combine the results into a single data.table:
-```R
-WS_data <- rbindlist(par_list)
-```
-
-### Example for multiple stationId and multiple parameterId ###
-
-#### Slow `for` loop(s) ####
-
-Define the queries that have multiple entries:
-```R
-req_parameter <- c('temp_dry', 'temp_dew', 'wind_dir')
-req_stations <- c('06060','06019')
-```
-Create lists and loop through the station and parameter IDs and make the request:
-```R
-stat_list <- as.list(req_stations)
-for(j in seq_along(req_stations)){
-  par_list <- as.list(req_parameter)
-  stationId <- paste0('stationId=', req_stations[j])
-  for(i in seq_along(req_parameter)){
-    parameterId <- paste0('parameterId=', req_parameter[i])
-    v3 <- GET(paste(url,stationId,datetime,limit,parameterId,API,sep='&'))
-    WS_raw <- fromJSON(rawToChar(v3$content))
-    par_list[[i]] <- as.data.table(WS_raw[[2]][[4]])
-  }
-  stat_list[[j]] <- rbindlist(par_list)  
-}
-```
-Combine the results into a single `data.table`:
-```R
-WS_data <- rbindlist(stat_list)
-```
-
-The same can be done for multiple time periods by adding a third loop, and so on.
-However, instead of using `for` loops, it is recommended to use `lapply` for better performance. For this simple example `lapply` was average about 15% faster but the `for` loop took sometimes 5 times as long and those results were excluded.
-
-#### lapply ####
-
-```R
-req_parameter <- c('temp_dry', 'temp_dew', 'wind_dir')
-par_list <- lapply(req_parameter, function(x){
+par_list <- lapply(req_parameter, function(x) { # I recommend using lapply instead of a for loop
   parameterId <- paste0('parameterId=', x)
-  v4 <- GET(paste(url,stationId,datetime,limit,parameterId,API,sep='&'))
-  WS_raw <- fromJSON(rawToChar(v4$content))
-  out <- as.data.table(WS_raw[[2]][[4]])
+  meteo_raw <- GET(paste(url, stationId, datetime, limit, parameterId, API, sep = '&'))
+  meteo <- fromJSON(rawToChar(meteo_raw$content))
+  out <- as.data.table(meteo[[2]][[4]])
   out
 })
-WS_data <- rbindlist(par_list)
+meteo_data <- rbindlist(par_list)
+meteo_data
+```
+```HTML
+       parameterId                     created value             observed stationId
+            <char>                      <char> <num>               <char>    <char>
+    1:    temp_dry 2025-08-05T01:39:12.243219Z   2.3 2023-04-30T04:00:00Z     06074
+    2:    temp_dry 2025-08-05T01:39:12.110644Z   2.2 2023-04-30T03:50:00Z     06074
+    3:    temp_dry 2025-08-05T01:39:12.097156Z   2.3 2023-04-30T03:40:00Z     06074
+    4:    temp_dry 2025-08-05T01:39:12.083126Z   2.5 2023-04-30T03:30:00Z     06074
+    5:    temp_dry 2025-08-05T01:39:12.068573Z   2.7 2023-04-30T03:20:00Z     06074
+   ---                                                                             
+12189:    wind_dir 2025-08-05T03:07:01.655377Z  64.0 2023-04-01T00:40:00Z     06074
+12190:    wind_dir 2025-08-05T03:07:01.640481Z  64.0 2023-04-01T00:30:00Z     06074
+12191:    wind_dir 2025-08-05T03:07:01.625927Z  66.0 2023-04-01T00:20:00Z     06074
+12192:    wind_dir 2025-08-05T03:07:01.610718Z  67.0 2023-04-01T00:10:00Z     06074
+12193:    wind_dir 2025-08-05T03:07:01.595717Z  65.0 2023-04-01T00:00:00Z     06074
 ```
 
-The same can be done for multiple queries:
+#### Example for multiple stationId and multiple parameterIds ####
+
 ```R
-req_parameter <- c('temp_dry', 'temp_dew', 'wind_dir')
-req_stations <- c('06060','06019')
+req_parameter <- c('temp_dry', 'humidity', 'wind_dir')
+req_stations <- c('06060', '06019')
 
 stat_list <- lapply(req_stations, function(x) {
   par_list <- lapply(req_parameter, function(y) {
     stationId <- paste0('stationId=', x)
     parameterId <- paste0('parameterId=', y)
-    v5 <- GET(paste(url,stationId,datetime,limit,parameterId,API,sep='&'))
-    WS_raw <- fromJSON(rawToChar(v5$content))
-    as.data.table(WS_raw[[2]][[4]])
+    meteo_raw <- GET(paste(url, stationId, datetime, limit, parameterId, API, sep = '&'))
+    meteo <- fromJSON(rawToChar(meteo_raw$content))
+    as.data.table(meteo[[2]][[4]])
   })
   rbindlist(par_list)
 })
-WS_data <- rbindlist(stat_list)
+meteo_data <- rbindlist(stat_list)
+meteo_data
 ```
-It would even be faster if instead of `paste0` the parameters are directly used in the `GET` function, but I am too lazy for that as it does not really fit with how I did it above. Also if multiple queries with multiple requests are used, you could first write a function that will do it but I was also too lazy for that. I might do it on a later time (in my personal there is a function for that).
+```HTML
+       parameterId                     created value             observed stationId
+            <char>                      <char> <num>               <char>    <char>
+    1:    temp_dry 2025-08-05T01:39:12.164719Z   2.2 2023-04-30T04:00:00Z     06060
+    2:    temp_dry 2025-08-05T01:39:12.118669Z   2.3 2023-04-30T03:50:00Z     06060
+    3:    temp_dry 2025-08-05T01:39:12.107691Z   2.2 2023-04-30T03:40:00Z     06060
+    4:    temp_dry 2025-08-05T01:39:12.094036Z   1.7 2023-04-30T03:30:00Z     06060
+    5:    temp_dry 2025-08-05T01:39:12.078883Z   1.9 2023-04-30T03:20:00Z     06060
+   ---                                                                             
+24734:    wind_dir 2025-08-05T03:07:01.647896Z  61.0 2023-04-01T00:40:00Z     06019
+24735:    wind_dir 2025-08-05T03:07:01.633752Z  61.0 2023-04-01T00:30:00Z     06019
+24736:    wind_dir 2025-08-05T03:07:01.618363Z  63.0 2023-04-01T00:20:00Z     06019
+24737:    wind_dir 2025-08-05T03:07:01.603935Z  63.0 2023-04-01T00:10:00Z     06019
+24738:    wind_dir 2025-08-05T03:07:01.688033Z  60.0 2023-04-01T00:00:00Z     06019
+```
+It would even be faster if instead of `paste0` the parameters are directly used in the `GET` function, but I am too lazy for that as it does not really fit with how I did it above. Also, if multiple queries with multiple requests are used, you could first write a function that will do it (For my personal use I have one, put I did not yet include it in this gudie).
 
----------------------------------------------------------------------------------------------------------------------------------------------------------------
+Plot some of the data
+```R
+library(ggplot2)
 
-# Climate data #
+meteo_data[, {
+  X <- rbind(.SD)
+  X[, et := as.POSIXct(observed, format='%Y-%m-%dT%H:%M:%SZ', tz = 'UTC')]
+  ggplot(X, aes(x = et, y = value, colour = stationId)) +
+  geom_point() +
+  xlab(NULL) +
+  facet_grid(parameterId ~ ., scale = 'free_y') +
+  theme_bw() +
+  theme(strip.background = element_rect(fill = "white"))
+}]
+```
+![Fig1](images/Fig1.png)
+
+## Climate data ##
 
 The climate data (climateData) API service contains quality controlled meteorological observation data from Denmark (DNK) and Greenland (GRL). You can read more about climate data and how they are attained under [data information](https://opendatadocs.dmi.govcloud.dk/Data/Climate_Data).
 
@@ -274,9 +351,11 @@ If you want to download large quantities of climate data, DMI recommends that yo
 
 With the climate data, you can have interpolated meterological observation data from Denmark in 10 x 10 km resoulution, 20 x 20 km resolution, data for the Danish municipality or the country of Denmark.
 
-## Input list ##
+### Input list ###
 
-The [queries](https://opendatadocs.dmi.govcloud.dk/en/APIs/Climate_Data_API#collections#collections) are mostly the same as for the meteorological data. Just use a different API key. I thus list here only the ones that are different or important for the climate data:
+The [queries](https://opendatadocs.dmi.govcloud.dk/en/APIs/Climate_Data_API#collections#collections) are mostly the same as for the [meteorological data](##Meteorological-observation). Remember to use a different API key:
+
+ - `API-key` - This is always necessary.
  - `url` - Here are the different `url`s for accessing climate data.
     - Status of stations: `https://dmigw.govcloud.dk/v2/climateData/collections/station/items?`
     - Climate data for stations: `https://dmigw.govcloud.dk/v2/climateData/collections/stationValue/items?`
@@ -286,100 +365,104 @@ The [queries](https://opendatadocs.dmi.govcloud.dk/en/APIs/Climate_Data_API#coll
     - Climate data on country level: `https://dmigw.govcloud.dk/v2/climateData/collections/country/items?`
  - `municipalityId` - Narrows the search to a municipality. There is a [list](https://danmarksadresser.dk/adressedata/kodelister/kommunekodeliste) with all municipality IDs.
  - `cellId` - Narrows the search to a specific cellId. There is a [website](https://dmidk.github.io/Climate-Data-Grid-Map/) where you can easily select your grid.
- - `timeResolution` - Narrows the search to a specific time resolution, i.e. `hour`,`day`,`month`,`year`.
+ - `stationId` - This is used if you wanna have data from only a certain station. The station ID can either be found with a [basic request](#station-information) with the station url or on the [DMI station list](https://opendatadocs.dmi.govcloud.dk/Data/Meteorological_Observation_Data_Stations). 
+ - `timeResolution` - Narrows the search to a specific time resolution, i.e. `hour`, `day`, `month`, `year`.
+ - `datetime` - With this you can define the time range of the data. Different formats are possible. More information in the documentation linked above.
+ - `parameterId` - Define which parameter you need.
+ - `limit` - Define how many rows/entries you need. The default is 1,000 and the maximum is 300,000.
+ - `bbox` - This is useful if you wanna select stations in a certian area. The query is southwest corner and northeast corner i.e., `LON1, LAT1, LON2, LAT2`. Otherwiese, just look at the [map](https://www.dmi.dk/friedata/observationer/) (or [here](https://www.dmi.dk/vejrdata/maalinger) in case the previous link does not work). If you have a `stationId` defined, there is no need for `bbox`.
 
-The list of all available parameterIds is the same as long as you request station data. If you wanna have grid data, municipality or country values, then there are fewer parameters available as the temporal resolution is lower. See [Website DMI](https://opendatadocs.dmi.govcloud.dk/Data/Climate_Data#parameters).
 
-## Request data - Examples ##
+The list of all available parameterIds is the same as for meteorological data as long as you request station data. If you wanna have grid data, municipality or country values, then there are fewer parameters available as the temporal resolution is lower. See [Website DMI](https://opendatadocs.dmi.govcloud.dk/Data/Climate_Data#parameters).
 
-### Temperature Data from Aarhus ###
+### Request data - Examples ###
 
-We wanna have temperature data (hourly resolution) from the Aarhus municipality for the year 2022.
+#### Temperature Data from Aarhus ####
+
+We wanna have daily temperature data from the Aarhus municipality for the last ca. 25 years.
 ```R
 ## Define variables
 API <- 'api-key=9816-54321-hgfe-dcba-123456789' # this is just a random API key I made up.
 url <- 'https://dmigw.govcloud.dk/v2/climateData/collections/municipalityValue/items?' # url for accessing municipality data
 municipalityId <- 'municipalityId=0751' # Aarhus, probably the best city in Denmark ;)
-datetime <- 'datetime=2022-01-01T00:00:00Z/2022-12-31T23:59:59Z'
+datetime <- 'datetime=2000-01-01T00:00:00Z/2025-11-24T00:00:00Z'
 parameterId <- 'parameterId=mean_temp'
-timeResolution <- 'timeResolution=hour'
+timeResolution <- 'timeResolution=day'
 limit <- 'limit=300000' # set the limit to max
 
 ## Make the request
-v6 <- GET(paste(url,municipalityId,datetime,parameterId,timeResolution,limit,API,sep='&'))
+clim_raw <- GET(paste(url, municipalityId, datetime, parameterId, timeResolution, limit, API, sep = '&'))
 ## Use the `fromJSON` function to make the response readable
-data_raw <- fromJSON(rawToChar(v6$content))
+clim <- fromJSON(rawToChar(clim_raw$content))
 ## Extract the relevant data
-Aarhus_temp <- as.data.table(data_raw[[2]][[4]])
+Aarhus_temp <- as.data.table(clim[[2]][[4]])
 ## Display your data
 Aarhus_temp
 ```
 ```HTML
-                    calculatedAt                          created                      from municipalityId municipalityName parameterId qcStatus timeResolution                        to value
-   1: 2023-01-02T15:06:15.003000 2023-05-22T19:51:05.989658+00:00 2022-12-31T23:00:00+00:00           0751           Aarhus   mean_temp   manual           hour 2023-01-01T00:00:00+00:00   5.2
-   2: 2023-01-01T17:52:24.510000 2023-05-22T19:50:53.393177+00:00 2022-12-31T22:00:00+00:00           0751           Aarhus   mean_temp   manual           hour 2022-12-31T23:00:00+00:00   5.1
-   3: 2023-01-01T17:44:37.966000 2023-05-22T19:50:53.329679+00:00 2022-12-31T21:00:00+00:00           0751           Aarhus   mean_temp   manual           hour 2022-12-31T22:00:00+00:00   5.1
-   4: 2023-01-01T17:37:03.144000 2023-05-22T19:50:53.146498+00:00 2022-12-31T20:00:00+00:00           0751           Aarhus   mean_temp   manual           hour 2022-12-31T21:00:00+00:00   5.0
-   5: 2023-01-01T17:28:09.290000 2023-05-22T19:50:53.021998+00:00 2022-12-31T19:00:00+00:00           0751           Aarhus   mean_temp   manual           hour 2022-12-31T20:00:00+00:00   5.1
+      municipalityId parameterId qcStatus                   created timeResolution                             from                        to municipalityName value               calculatedAt
+              <char>      <char>   <char>                    <char>         <char>                           <char>                    <char>           <char> <num>                     <char>
+   1:           0751   mean_temp     none 2025-11-24T14:32:18+00:00            day 2025-11-24T00:00:00.001000+01:00 2025-11-25T00:00:00+01:00           Aarhus   1.2 2025-11-24T14:32:14.900000
+   2:           0751   mean_temp   manual 2025-11-24T14:01:50+00:00            day 2025-11-23T00:00:00.001000+01:00 2025-11-24T00:00:00+01:00           Aarhus   2.5 2025-11-24T07:26:13.868000
+   3:           0751   mean_temp   manual 2025-11-24T14:02:52+00:00            day 2025-11-22T00:00:00.001000+01:00 2025-11-23T00:00:00+01:00           Aarhus   3.2 2025-11-23T07:26:11.240000
+   4:           0751   mean_temp   manual 2025-11-24T14:02:52+00:00            day 2025-11-21T00:00:00.001000+01:00 2025-11-22T00:00:00+01:00           Aarhus  -0.4 2025-11-22T07:26:11.899000
+   5:           0751   mean_temp   manual 2025-11-24T14:00:47+00:00            day 2025-11-20T00:00:00.001000+01:00 2025-11-21T00:00:00+01:00           Aarhus  -0.1 2025-11-21T07:26:11.888000
   ---                                                                                                                                                                                          
-8756: 2022-01-04T08:53:02.634000 2023-05-22T19:05:41.409508+00:00 2022-01-01T04:00:00+00:00           0751           Aarhus   mean_temp   manual           hour 2022-01-01T05:00:00+00:00   7.0
-8757: 2022-01-04T08:46:00.899000 2023-05-22T19:05:41.266899+00:00 2022-01-01T03:00:00+00:00           0751           Aarhus   mean_temp   manual           hour 2022-01-01T04:00:00+00:00   6.8
-8758: 2022-01-04T08:37:33.954000 2023-05-22T19:05:41.129370+00:00 2022-01-01T02:00:00+00:00           0751           Aarhus   mean_temp   manual           hour 2022-01-01T03:00:00+00:00   6.7
-8759: 2022-01-04T08:31:16.806000 2023-05-22T19:05:40.991742+00:00 2022-01-01T01:00:00+00:00           0751           Aarhus   mean_temp   manual           hour 2022-01-01T02:00:00+00:00   6.9
-8760: 2022-01-04T08:25:02.518000 2023-05-22T19:05:40.856406+00:00 2022-01-01T00:00:00+00:00           0751           Aarhus   mean_temp   manual           hour 2022-01-01T01:00:00+00:00   6.7
+5437:           0751   mean_temp   manual 2025-10-31T03:06:50+00:00            day 2011-01-06T00:00:00.001000+01:00 2011-01-07T00:00:00+01:00           Aarhus  -0.3 2025-06-25T15:09:51.921000
+5438:           0751   mean_temp   manual 2025-10-31T03:07:25+00:00            day 2011-01-05T00:00:00.001000+01:00 2011-01-06T00:00:00+01:00           Aarhus  -1.3 2025-06-27T04:52:13.927000
+5439:           0751   mean_temp   manual 2025-10-31T03:08:02+00:00            day 2011-01-04T00:00:00.001000+01:00 2011-01-05T00:00:00+01:00           Aarhus  -0.6 2025-06-27T04:52:04.515000
+5440:           0751   mean_temp   manual 2025-10-31T03:08:39+00:00            day 2011-01-03T00:00:00.001000+01:00 2011-01-04T00:00:00+01:00           Aarhus  -3.7 2025-06-25T06:56:58.223000
+5441:           0751   mean_temp   manual 2025-10-31T03:09:18+00:00            day 2011-01-02T00:00:00.001000+01:00 2011-01-03T00:00:00+01:00           Aarhus  -1.9 2025-07-03T08:53:49.041000
 ```
-Here are some example on how to manipulate the data further
+As you can see, only data from 2011 onwards is available. Anyway, here is an example on how to manipulate the data further:
 ```R
 ## convert the character time string to a date
-Aarhus_temp[,st := as.POSIXct(gsub('\\+.*$', '', from), format='%Y-%m-%dT%H:%M:%S',tz='UTC')] # start time
-Aarhus_temp[,et := as.POSIXct(gsub('\\+.*$', '', to), format='%Y-%m-%dT%H:%M:%S',tz='UTC')] # end time
-## you could also use the lubridate package and ymd_hms function e.g.
-# library(lubridate)
-# Aarhus_temp[,st := ymd_hms(from)]
+Aarhus_temp[, st := as.POSIXct(gsub('\\+.*$', '', from), format = '%Y-%m-%dT%H:%M:%S', tz = 'UTC')] # start time
+Aarhus_temp[, et := as.POSIXct(gsub('\\+.*$', '', to), format = '%Y-%m-%dT%H:%M:%S', tz = 'UTC')] # end time
 
-## order the data according to time
-setkey(Aarhus_temp,st)
-Temp <- Aarhus_temp[,.(st,et,Temp=value)]
+## order the data according to time. At the moment the newest data comes first
+setkey(Aarhus_temp, st)
+Temp <- Aarhus_temp[, .(st, et, Temp = value)]
 
 ##### Plot data:
 library(ggplot2)
 
-Temp[,{
+Temp[, {
   X <- rbind(.SD)
-  X[,Week := week(st)]
-  X[,Col := mean(Temp,na.rm=TRUE),by=Week]
-  ggplot(X,aes(x=st,y=Temp,group=Week,fill=Col)) +
+  X[, Week := week(st)]
+  X[, Temperature := mean(Temp, na.rm = TRUE), by = Week]
+  ggplot(X, aes(x = Week, y = Temp, group = Week, fill = Temperature)) +
   geom_boxplot() +
-  scale_fill_gradient(low='#030388',high='#F80505') +
-  xlab(NULL) +
+  scale_fill_gradient(low = '#030388', high = '#F80505') +
+  xlab('Week number') +
   ylab('Temperature [°C]') +
-  theme_bw()
+  theme_bw(base_size = 15) +
+  theme(legend.position = 'none')
 }]
 ```
 ![Fig2](images/Fig2.png)
 
-### Wind direction and temperature data from a grid cell ##
+#### Wind direction and pressure data from a grid cell ###
 
-We wanna have wind direction and temperature data in daily resolution over the previous 36 months (3 years) from the 10 x 10 km grid No. 622_57 (Aarhus)
+We wanna have wind direction and pressure data in hourly resolution over the previous 36 months (3 years) from the 10 x 10 km grid No. 622_57 (Aarhus)
 
 ```R
 ## Define variables
 API <- 'api-key=9816-54321-hgfe-dcba-123456789' # this is just a random API key I made up.
 url <- 'https://dmigw.govcloud.dk/v2/climateData/collections/10kmGridValue/items?' # url for accessing municipality data
 cellId <- 'cellId=10km_622_57'
-current_time <- format(Sys.time() - 86400*365*2,format = "%Y-%m-%dT%H:%M:%SZ") # for having the last two years of data
-# current_time <- format(now() - years(2),format = "%Y-%m-%dT%H:%M:%SZ") # with the package lubridate
-datetime <- paste0('datetime=',current_time,'/..')
-req_parameter <- c('mean_temp', 'mean_wind_dir')
-timeResolution <- 'timeResolution=day'
+current_time <- format(Sys.time() - 86400 * 365 * 2, format = "%Y-%m-%dT%H:%M:%SZ") # for having the last two years of data
+datetime <- paste0('datetime=', current_time, '/..')
+req_parameter <- c('mean_pressure', 'mean_wind_dir')
+timeResolution <- 'timeResolution=hour'
 limit <- 'limit=300000' # set the limit to max
 
 ## Make the request
 par_list <- lapply(req_parameter, function(x){
   parameterId <- paste0('parameterId=', x)
-  v7 <- GET(paste(url,cellId,datetime,parameterId,timeResolution,limit,API,sep='&'))
-  data_raw <- fromJSON(rawToChar(v7$content))
-  out <- as.data.table(data_raw[[2]][[4]])
+  clim_raw <- GET(paste(url, cellId, datetime, parameterId, timeResolution, limit, API, sep = '&'))
+  clim <- fromJSON(rawToChar(clim_raw$content))
+  out <- as.data.table(clim[[2]][[4]])
   out
 })
 Aarhus_data <- rbindlist(par_list)
@@ -387,75 +470,61 @@ Aarhus_data <- rbindlist(par_list)
 Aarhus_data
 ```
 ```HTML
-                     calculatedAt      cellId                          created                             from   parameterId qcStatus timeResolution                        to value
-   1: 2023-10-26T11:28:40.989000 10km_622_57 2023-10-26T12:02:28.291835+00:00 2023-10-26T00:00:00.001000+02:00     mean_temp     none            day 2023-10-27T00:00:00+02:00   7.2
-   2: 2023-10-26T07:25:45.125000 10km_622_57 2023-10-26T12:02:21.535253+00:00 2023-10-25T00:00:00.001000+02:00     mean_temp   manual            day 2023-10-26T00:00:00+02:00   8.8
-   3: 2023-10-25T07:26:41.680000 10km_622_57 2023-10-26T11:58:13.791206+00:00 2023-10-24T00:00:00.001000+02:00     mean_temp   manual            day 2023-10-25T00:00:00+02:00   8.9
-   4: 2023-10-24T07:26:43.777000 10km_622_57 2023-10-25T10:30:50.762343+00:00 2023-10-23T00:00:00.001000+02:00     mean_temp   manual            day 2023-10-24T00:00:00+02:00   9.1
-   5: 2023-10-23T07:26:47.910000 10km_622_57 2023-10-25T11:07:22.110020+00:00 2023-10-22T00:00:00.001000+02:00     mean_temp   manual            day 2023-10-23T00:00:00+02:00  10.4
-  ---                                                                                                                                                                               
-1456: 2021-11-01T07:31:03.146000 10km_622_57 2023-05-20T14:49:53.041709+00:00 2021-10-31T00:00:00.001000+02:00 mean_wind_dir   manual            day 2021-11-01T00:00:00+01:00 177.0
-1457: 2021-10-31T07:32:41.737000 10km_622_57 2023-05-20T14:49:17.270974+00:00 2021-10-30T00:00:00.001000+02:00 mean_wind_dir   manual            day 2021-10-31T00:00:00+02:00 154.0
-1458: 2021-10-30T07:29:16.440000 10km_622_57 2023-05-20T14:48:42.343544+00:00 2021-10-29T00:00:00.001000+02:00 mean_wind_dir   manual            day 2021-10-30T00:00:00+02:00 166.0
-1459: 2021-10-29T07:31:41.468000 10km_622_57 2023-05-20T14:45:33.780031+00:00 2021-10-28T00:00:00.001000+02:00 mean_wind_dir   manual            day 2021-10-29T00:00:00+02:00 197.0
-1460: 2021-10-28T07:31:40.649000 10km_622_57 2023-05-20T14:44:55.983806+00:00 2021-10-27T00:00:00.001000+02:00 mean_wind_dir   manual            day 2021-10-28T00:00:00+02:00 227.0
+         parameterId qcStatus                   created timeResolution                      from                        to      cellId value               calculatedAt
+              <char>   <char>                    <char>         <char>                    <char>                    <char>      <char> <num>                     <char>
+    1: mean_pressure     none 2025-11-24T12:32:53+00:00           hour 2025-11-24T11:00:00+00:00 2025-11-24T12:00:00+00:00 10km_622_57 994.4 2025-11-24T12:32:34.208000
+    2: mean_pressure     none 2025-11-24T11:52:48+00:00           hour 2025-11-24T10:00:00+00:00 2025-11-24T11:00:00+00:00 10km_622_57 994.7 2025-11-24T11:52:25.668000
+    3: mean_pressure     none 2025-11-24T10:52:52+00:00           hour 2025-11-24T09:00:00+00:00 2025-11-24T10:00:00+00:00 10km_622_57 994.9 2025-11-24T10:52:32.908000
+    4: mean_pressure     none 2025-11-24T09:52:50+00:00           hour 2025-11-24T08:00:00+00:00 2025-11-24T09:00:00+00:00 10km_622_57 994.9 2025-11-24T09:52:30.604000
+    5: mean_pressure     none 2025-11-24T08:51:13+00:00           hour 2025-11-24T07:00:00+00:00 2025-11-24T08:00:00+00:00 10km_622_57 994.9 2025-11-24T08:50:56.566000
+   ---                                                                                                                                                                 
+35011: mean_wind_dir   manual 2025-10-27T05:48:23+00:00           hour 2023-11-25T21:00:00+00:00 2023-11-25T22:00:00+00:00 10km_622_57 309.0 2023-11-26T17:17:07.842000
+35012: mean_wind_dir   manual 2025-10-27T05:48:22+00:00           hour 2023-11-25T20:00:00+00:00 2023-11-25T21:00:00+00:00 10km_622_57 345.0 2023-11-26T17:10:29.964000
+35013: mean_wind_dir   manual 2025-10-27T05:48:21+00:00           hour 2023-11-25T19:00:00+00:00 2023-11-25T20:00:00+00:00 10km_622_57 336.0 2023-11-26T17:04:02.905000
+35014: mean_wind_dir   manual 2025-10-27T05:48:20+00:00           hour 2023-11-25T18:00:00+00:00 2023-11-25T19:00:00+00:00 10km_622_57 348.0 2023-11-26T16:55:40.516000
+35015: mean_wind_dir   manual 2025-10-27T05:48:19+00:00           hour 2023-11-25T17:00:00+00:00 2023-11-25T18:00:00+00:00 10km_622_57 335.0 2023-11-26T16:49:50.936000
 ```
 Here are some example on how to manipulate the data further
 ```R
 ## convert the character time string to a date
-Aarhus_data[,st := as.POSIXct(gsub('\\+.*$', '', from), format='%Y-%m-%dT%H:%M:%S',tz='UTC')] # start time
-Aarhus_data[,et := as.POSIXct(gsub('\\+.*$', '', to), format='%Y-%m-%dT%H:%M:%S',tz='UTC')] # end time
+Aarhus_data[, st := as.POSIXct(gsub('\\+.*$', '', from), format = '%Y-%m-%dT%H:%M:%S', tz = 'UTC')] # start time
+Aarhus_data[, et := as.POSIXct(gsub('\\+.*$', '', to), format = '%Y-%m-%dT%H:%M:%S', tz = 'UTC')] # end time
 
 ## order the data according to time
 setkey(Aarhus_data,st)
-Temp_WD <- Aarhus_data[,.(st,et,value,parameterId)]
+Temp_Pressure <- Aarhus_data[, .(st, et, value, parameterId)]
 
 ## Plot data
 library(ggplot2)
 
-Temp_WD[,{
-  ggplot(.SD,aes(x=st,y=value,colour=parameterId)) +
-  geom_line() +
-  facet_grid(parameterId ~ ., scale='free_y') +
+Temp_Pressure[, {
+  ggplot(.SD, aes(x = st, y = value, colour = parameterId)) +
+  geom_point() +
+  facet_grid(parameterId ~ ., scale = 'free_y') +
   xlab(NULL) +
-  theme_bw() +
-  theme(strip.background = element_rect(fill="white"), panel.grid = element_blank(),legend.position='none')
+  theme_bw(base_size = 15) +
+  theme(strip.background = element_rect(fill = "white"), legend.position = 'none')
 }]
 ```
 ![Fig3](images/Fig3.png)
 
-as the data is actually interval based data, one could also use the ibts package
-```R
-library(ibts)
-
-Temp_WD_ibts <- as.ibts(dcast(Temp_WD, st + et ~ parameterId, value.var = list('value')))
-
-par(mfrow=c(2,1))
-plot(Temp_WD_ibts[,'mean_temp'],col='indianred')
-plot(Temp_WD_ibts[,'mean_wind_dir'],col='blue')
-
-# or in one plot
-dev.off() # to close the two panel plot
-plot(Temp_WD_ibts,col='indianred',col2='blue')
-```
-![Fig4](images/Fig4.png)
-![Fig5](images/Fig5.png)
 
 
 # Comments #
 
 ## General ##
 
-There is no guarentee that all the urls work. The last time I checked was on the 28/10/2024. Further, DMI recently added example scripts like I have in this guide, thus making this guide a bit unnecessary.
+DMI recently added example scripts like I have in this guide, thus making this guide a bit unnecessary.
+There is no guarentee that all the urls work. The last time I checked was on the 24/11/2025. 
 
 ## Foulum weather station ##
 
-The Foulum weather station is no accessible via DMI's API. The station ID is 06069. 
+The Foulum weather station is now accessible via DMI's API. The station ID is 06069. 
 Be aware that if you download the Foulum data from the [agro website](https://agro-web11t.uni.au.dk/klimadb/), the time stamps are in `UTC+1` resp. `ETC`. Like the regular DMI data, the time stamps also indicate the averages/sums of the last 10min/hour/day/month/year.
 
 ## Bulk request ##
 
 If you want to download large quantities of climate data, DMI recommends that you use DMI’s bulk download service. The service lets you download .zip files, each containing historical data for a month going back to a long time (Observational data: 1953, Climate data: 2011 for Denmark and 1958 for Greenland). You can also download all historical data by selecting the file all.zip. In this documentation, bulk requests are however not covered yet.
 
-
-<h6>The DMI API service is a great tool for accessing data for free. This guide was written by Marcel and a lot of things were copied from the DMI website. If you encounter any problems, you can write me an <a href='mailto:mb@bce.au.dk'>email</a></h6>
+<br>
+<h6>This guide was written by Marcel and a lot of things were copied from the DMI website. If you encounter any problems, you can write me an <a href='mailto:mb@bce.au.dk'>email</a>.</h6>
