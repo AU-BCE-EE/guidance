@@ -2,7 +2,7 @@
 
 This document provides instructions on how to utilise the Application Programming Interface (API) to access data from the Danish Meteorological Institute (DMI) using the R statistical computing software. It includes illustrative examples for the meteorological observations *(Observationsdata)* and the climate data *(Klimadata)*.
 
-At the time I wrote the first version of this guide (August 2024), there was no detailed information on DMI. Now, they have their on guides that are quite detailed and makes this one a bit obsolete.
+At the time I wrote the first version of this guide (September 2023), there was no detailed information on the DMI website. Now, they have their on guides that are quite detailed and makes this one a bit obsolete.
 
 ## Getting started ##
 
