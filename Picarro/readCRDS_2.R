@@ -7,6 +7,11 @@
 ##################################################
 ##################################################
 
+### comment from Flavia
+----># Hi Marcel, I had a small issue (that I have solved) with readCRDS but you may be interested in knowing it. Alwyas working with the renamed files. In a folder Picarro data going from 2022-04-26 to 2022-05-02. When reading in the data with readCRDS, and creating the dataframe with rbind, the dates were not ordered in the right way. 2022-05-01, followed by 2022-05-01 were appearing first, followed by the April's data. I don t know if it was clear how I explained/if it is useful for you to know  I guess it is because the subfolders were named 01, 02, 26 , 27, 28, 29, 30 and it could not understand that 01 and 02 were of the following month
+
+
+
 library(data.table)
 library(lubridate)
 
@@ -127,6 +132,7 @@ readCRDS2 <- function(Folder, From = NULL, To = NULL, tz = 'ETC/GMT-1', rm = TRU
 					if (length(out) == 1) {
 						out <- out[[1]]
 					}
+					out[order(st)] # <---- try to fix the issue that if renamed = TRUE, the dt might not be ordered in time. See comment Flavia
 					return(out)
 					if (ibts) {
 						out_ibts <- as.ibts(out)
@@ -136,25 +142,12 @@ readCRDS2 <- function(Folder, From = NULL, To = NULL, tz = 'ETC/GMT-1', rm = TRU
 					cat('no data found within your period or the meta data is not reliable. Try using "meta = FALSE".')
 				}
 			}
-
-
-
 		} # closing curly brace for renamed = TRUE
 	} else { # closing if for '!h5'
-
-
-
-
-
-
 		# load library to read in h5 files
 		library(rhdf5)
 		files_all <- list.files(Folder, recursive = subfolders, full.names = TRUE, pattern = '\\.h5$') # read in only h5 files
 		if (!renamed) { # this is used if the rename argument is true.
-			
-
-
-		
 			Picarro <- unique(sub('^([[:alnum:]]+)[-].*', '\\1', basename(files_all))) # I just read the Picarro name
 			files <- data.table(path = grep(Picarro, files_all, value = TRUE))
 			files[, time_strings := sub('^[[:alnum:]]+[-](\\d{8})[-](\\d{6}).*', '\\1\\2', basename(path))] # read out timestamp
@@ -378,8 +371,6 @@ make_ibts <- function(dt, ibts) {
 		return(dt)
 	}
 }
-
-
 
 
 ##########################################################
