@@ -8,7 +8,7 @@
 ##################################################
 
 ### comment from Flavia
-----># Hi Marcel, I had a small issue (that I have solved) with readCRDS but you may be interested in knowing it. Alwyas working with the renamed files. In a folder Picarro data going from 2022-04-26 to 2022-05-02. When reading in the data with readCRDS, and creating the dataframe with rbind, the dates were not ordered in the right way. 2022-05-01, followed by 2022-05-01 were appearing first, followed by the April's data. I don t know if it was clear how I explained/if it is useful for you to know  I guess it is because the subfolders were named 01, 02, 26 , 27, 28, 29, 30 and it could not understand that 01 and 02 were of the following month
+# ----># Hi Marcel, I had a small issue (that I have solved) with readCRDS but you may be interested in knowing it. Alwyas working with the renamed files. In a folder Picarro data going from 2022-04-26 to 2022-05-02. When reading in the data with readCRDS, and creating the dataframe with rbind, the dates were not ordered in the right way. 2022-05-01, followed by 2022-05-01 were appearing first, followed by the April's data. I don t know if it was clear how I explained/if it is useful for you to know  I guess it is because the subfolders were named 01, 02, 26 , 27, 28, 29, 30 and it could not understand that 01 and 02 were of the following month
 
 
 
